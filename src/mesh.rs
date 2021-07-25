@@ -259,30 +259,30 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
         None
     }
 
-    pub fn read(&mut self, path: &Path) -> Result<(), MeshError> {
-        let data = MeshReader::read(path)?;
+    pub fn read(data: &MeshReader) -> Result<Self, MeshError> {
+        let mut mesh = Mesh::new();
 
         if data.uvs.is_empty() || !data.face_has_uv {
             return Err(MeshError::NoUV);
         }
 
         // Create all the nodes
-        for pos in data.positions {
-            self.add_empty_node(pos);
+        for pos in &data.positions {
+            mesh.add_empty_node(*pos);
         }
 
         // Create all the verts
-        for uv in data.uvs {
-            let vert = self.add_empty_vert();
-            vert.uv = Some(uv);
+        for uv in &data.uvs {
+            let vert = mesh.add_empty_vert();
+            vert.uv = Some(*uv);
         }
 
         // Work with the face indices that have been read to form the edges and faces
-        for face_i in data.face_indices {
+        for face_i in &data.face_indices {
             // Update verts and nodes
-            for (pos_index, uv_index, normal_index) in &face_i {
-                let vert = self.verts.get_unknown_gen_mut(*uv_index).unwrap().0;
-                let node = self.nodes.get_unknown_gen_mut(*pos_index).unwrap().0;
+            for (pos_index, uv_index, normal_index) in face_i {
+                let vert = mesh.verts.get_unknown_gen_mut(*uv_index).unwrap().0;
+                let node = mesh.nodes.get_unknown_gen_mut(*pos_index).unwrap().0;
 
                 // Update vert with node
                 vert.node = Some(node.self_index);
@@ -300,26 +300,26 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
 
             // Update edges
             for ((_, vert_1_index, _), (_, vert_2_index, _)) in
-                face_i.into_iter().circular_tuple_windows()
+                face_i.iter().circular_tuple_windows()
             {
-                let vert_1_index = self.verts.get_unknown_gen_mut(vert_1_index).unwrap().1;
-                let vert_2_index = self.verts.get_unknown_gen_mut(vert_2_index).unwrap().1;
-                match self
+                let vert_1_index = mesh.verts.get_unknown_gen_mut(*vert_1_index).unwrap().1;
+                let vert_2_index = mesh.verts.get_unknown_gen_mut(*vert_2_index).unwrap().1;
+                match mesh
                     .get_connecting_edge_index(VertIndex(vert_1_index), VertIndex(vert_2_index))
                 {
                     Some(edge_index) => {
-                        let edge = self.edges.get(edge_index.0).unwrap();
+                        let edge = mesh.edges.get(edge_index.0).unwrap();
                         face_edges.push(edge.self_index);
                     }
                     None => {
-                        let edge_index = self.add_empty_edge_index();
-                        let edge = self.edges.get_mut(edge_index.0).unwrap();
+                        let edge_index = mesh.add_empty_edge_index();
+                        let edge = mesh.edges.get_mut(edge_index.0).unwrap();
                         // Update edge with vert
                         edge.verts = Some((VertIndex(vert_1_index), VertIndex(vert_2_index)));
                         // Update vert with edge
-                        let vert_1 = self.verts.get_mut(vert_1_index).unwrap();
+                        let vert_1 = mesh.verts.get_mut(vert_1_index).unwrap();
                         vert_1.edges.push(edge.self_index);
-                        let vert_2 = self.verts.get_mut(vert_2_index).unwrap();
+                        let vert_2 = mesh.verts.get_mut(vert_2_index).unwrap();
                         vert_2.edges.push(edge.self_index);
                         face_edges.push(edge.self_index);
                     }
@@ -330,14 +330,14 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
 
             // Update faces
             {
-                let face_index = self.add_empty_face_index();
-                let face = self.faces.get_mut(face_index.0).unwrap();
+                let face_index = mesh.add_empty_face_index();
+                let face = mesh.faces.get_mut(face_index.0).unwrap();
                 // Update face with verts
                 face.verts = face_verts;
 
                 // Update edges with face
                 for edge_index in &face_edges {
-                    let edge = self.edges.get_mut(edge_index.0).unwrap();
+                    let edge = mesh.edges.get_mut(edge_index.0).unwrap();
                     edge.faces.push(face.self_index);
                 }
             }
@@ -345,46 +345,51 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
 
         // Any node without a vert gets a new vert without uv
         let mut loose_nodes = Vec::new();
-        self.nodes
+        mesh.nodes
             .iter()
             .filter(|(_, node)| node.verts.is_empty())
             .for_each(|(_, node)| {
                 loose_nodes.push(node.self_index);
             });
         for node_index in loose_nodes {
-            let vert_index = self.add_empty_vert_index();
-            let vert = self.verts.get_mut(vert_index.0).unwrap();
-            let node = self.nodes.get_mut(node_index.0).unwrap();
+            let vert_index = mesh.add_empty_vert_index();
+            let vert = mesh.verts.get_mut(vert_index.0).unwrap();
+            let node = mesh.nodes.get_mut(node_index.0).unwrap();
             vert.node = Some(node.self_index);
             node.verts.push(vert.self_index);
         }
 
         // Add lines to the mesh
-        for line in data.line_indices {
+        for line in &data.line_indices {
             for (node_index_1, node_index_2) in line.iter().tuple_windows() {
                 // Since lines don't store the UV information, we take
                 // the nodes' first vert to create the edge
-                let edge_index = self.add_empty_edge_index();
-                let edge = self.edges.get_mut(edge_index.0).unwrap();
+                let edge_index = mesh.add_empty_edge_index();
+                let edge = mesh.edges.get_mut(edge_index.0).unwrap();
 
-                let node_1 = self.nodes.get_unknown_gen(*node_index_1).unwrap().0;
-                let node_2 = self.nodes.get_unknown_gen(*node_index_2).unwrap().0;
+                let node_1 = mesh.nodes.get_unknown_gen(*node_index_1).unwrap().0;
+                let node_2 = mesh.nodes.get_unknown_gen(*node_index_2).unwrap().0;
 
-                let vert_1 = self.verts.get(node_1.verts[0].0).unwrap();
-                let vert_2 = self.verts.get(node_2.verts[0].0).unwrap();
+                let vert_1 = mesh.verts.get(node_1.verts[0].0).unwrap();
+                let vert_2 = mesh.verts.get(node_2.verts[0].0).unwrap();
 
                 // Update edge with verts
                 edge.verts = Some((vert_1.self_index, vert_2.self_index));
 
                 // Update verts with edge
-                let vert_1 = self.verts.get_mut(node_1.verts[0].0).unwrap();
+                let vert_1 = mesh.verts.get_mut(node_1.verts[0].0).unwrap();
                 vert_1.edges.push(edge.self_index);
-                let vert_2 = self.verts.get_mut(node_2.verts[0].0).unwrap();
+                let vert_2 = mesh.verts.get_mut(node_2.verts[0].0).unwrap();
                 vert_2.edges.push(edge.self_index);
             }
         }
 
-        Ok(())
+        Ok(mesh)
+    }
+
+    pub fn read_from_file(path: &Path) -> Result<Self, MeshError> {
+        let data = MeshReader::read(path)?;
+        Self::read(&data)
     }
 }
 
