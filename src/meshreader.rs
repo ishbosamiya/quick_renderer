@@ -63,94 +63,16 @@ impl MeshReader {
         let reader = BufReader::new(fin);
 
         for line in reader.lines() {
-            let line = line?;
-            if line.starts_with('#') {
-                continue;
-            }
-            let vals: Vec<&str> = line.split(' ').collect();
-            assert!(!vals.is_empty());
-            match vals[0] {
-                "v" => {
-                    // Don't currently support positions with 4 or more coordinates
-                    assert!(vals.len() == 4);
-                    let x: f64 = vals[1].parse().unwrap();
-                    let y: f64 = vals[2].parse().unwrap();
-                    let z: f64 = vals[3].parse().unwrap();
-                    positions.push(glm::vec3(x, y, z));
-                }
-                "vn" => {
-                    // Don't currently support positions with 4 or more coordinates
-                    assert!(vals.len() == 4);
-                    let x: f64 = vals[1].parse().unwrap();
-                    let y: f64 = vals[2].parse().unwrap();
-                    let z: f64 = vals[3].parse().unwrap();
-                    normals.push(glm::vec3(x, y, z));
-                }
-                "vt" => {
-                    // Don't currently support texture coordinates with 3 or more coordinates
-                    assert!(vals.len() == 3);
-                    let u: f64 = vals[1].parse().unwrap();
-                    let v: f64 = vals[2].parse().unwrap();
-                    uvs.push(glm::vec2(u, v));
-                }
-                "f" => {
-                    // Don't currently support face with 2 or lesser verts
-                    assert!(vals.len() >= 4);
-                    let mut face_i: Vec<(usize, usize, usize)> = Vec::new();
-                    for val in vals.iter().skip(1) {
-                        let indices: Vec<&str> = val.split('/').collect();
-                        match indices.len() {
-                            // only positions
-                            1 => {
-                                let pos_index: usize = indices[0].parse().unwrap();
-                                face_i.push((pos_index - 1, usize::MAX, usize::MAX));
-                            }
-                            // positions and texture coordinates
-                            2 => {
-                                let pos_index: usize = indices[0].parse().unwrap();
-                                let uv_index: usize = indices[1].parse().unwrap();
-                                face_i.push((pos_index - 1, uv_index - 1, usize::MAX));
-                                face_has_uv = true;
-                            }
-                            // positions, texture coordinates and normals
-                            3 => {
-                                let pos_index: usize = indices[0].parse().unwrap();
-                                let uv_index: usize;
-                                if !indices[1].is_empty() {
-                                    uv_index = indices[1].parse().unwrap();
-                                } else {
-                                    uv_index = usize::MAX;
-                                }
-                                let normal_index: usize = indices[2].parse().unwrap();
-                                if uv_index == usize::MAX {
-                                    face_i.push((pos_index - 1, uv_index, normal_index - 1));
-                                } else {
-                                    face_i.push((pos_index - 1, uv_index - 1, normal_index - 1));
-                                }
-                                face_has_uv = true;
-                                face_has_normal = true;
-                            }
-                            _ => {
-                                return Err(MeshReaderError::InvalidFile);
-                            }
-                        }
-                    }
-                    assert!(!face_i.is_empty());
-                    face_indices.push(face_i);
-                }
-                "l" => {
-                    assert!(vals.len() >= 3);
-                    let mut indices: Vec<usize> = Vec::new();
-                    for val in vals.iter().skip(1) {
-                        let index: usize = val.parse().unwrap();
-                        indices.push(index - 1);
-                    }
-                    line_indices.push(indices);
-                }
-                _ => {
-                    continue;
-                }
-            }
+            Self::process_line(
+                &line?,
+                &mut positions,
+                &mut uvs,
+                &mut normals,
+                &mut face_indices,
+                &mut face_has_uv,
+                &mut face_has_normal,
+                &mut line_indices,
+            )?
         }
 
         // TODO(ish): validate the indices
@@ -164,6 +86,109 @@ impl MeshReader {
             face_has_normal,
             line_indices,
         })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn process_line(
+        line: &str,
+        positions: &mut Vec<glm::DVec3>,
+        uvs: &mut Vec<glm::DVec2>,
+        normals: &mut Vec<glm::DVec3>,
+        face_indices: &mut Vec<Vec<(usize, usize, usize)>>,
+        face_has_uv: &mut bool,
+        face_has_normal: &mut bool,
+        line_indices: &mut Vec<Vec<usize>>,
+    ) -> Result<(), MeshReaderError> {
+        if line.starts_with('#') {
+            return Ok(());
+        }
+        let vals: Vec<&str> = line.split(' ').collect();
+        assert!(!vals.is_empty());
+        match vals[0] {
+            "v" => {
+                // Don't currently support positions with 4 or more coordinates
+                assert!(vals.len() == 4);
+                let x: f64 = vals[1].parse().unwrap();
+                let y: f64 = vals[2].parse().unwrap();
+                let z: f64 = vals[3].parse().unwrap();
+                positions.push(glm::vec3(x, y, z));
+                Ok(())
+            }
+            "vn" => {
+                // Don't currently support positions with 4 or more coordinates
+                assert!(vals.len() == 4);
+                let x: f64 = vals[1].parse().unwrap();
+                let y: f64 = vals[2].parse().unwrap();
+                let z: f64 = vals[3].parse().unwrap();
+                normals.push(glm::vec3(x, y, z));
+                Ok(())
+            }
+            "vt" => {
+                // Don't currently support texture coordinates with 3 or more coordinates
+                assert!(vals.len() == 3);
+                let u: f64 = vals[1].parse().unwrap();
+                let v: f64 = vals[2].parse().unwrap();
+                uvs.push(glm::vec2(u, v));
+                Ok(())
+            }
+            "f" => {
+                // Don't currently support face with 2 or lesser verts
+                assert!(vals.len() >= 4);
+                let mut face_i: Vec<(usize, usize, usize)> = Vec::new();
+                for val in vals.iter().skip(1) {
+                    let indices: Vec<&str> = val.split('/').collect();
+                    match indices.len() {
+                        // only positions
+                        1 => {
+                            let pos_index: usize = indices[0].parse().unwrap();
+                            face_i.push((pos_index - 1, usize::MAX, usize::MAX));
+                        }
+                        // positions and texture coordinates
+                        2 => {
+                            let pos_index: usize = indices[0].parse().unwrap();
+                            let uv_index: usize = indices[1].parse().unwrap();
+                            face_i.push((pos_index - 1, uv_index - 1, usize::MAX));
+                            *face_has_uv = true;
+                        }
+                        // positions, texture coordinates and normals
+                        3 => {
+                            let pos_index: usize = indices[0].parse().unwrap();
+                            let uv_index: usize;
+                            if !indices[1].is_empty() {
+                                uv_index = indices[1].parse().unwrap();
+                            } else {
+                                uv_index = usize::MAX;
+                            }
+                            let normal_index: usize = indices[2].parse().unwrap();
+                            if uv_index == usize::MAX {
+                                face_i.push((pos_index - 1, uv_index, normal_index - 1));
+                            } else {
+                                face_i.push((pos_index - 1, uv_index - 1, normal_index - 1));
+                            }
+                            *face_has_uv = true;
+                            *face_has_normal = true;
+                        }
+                        _ => {
+                            return Err(MeshReaderError::InvalidFile);
+                        }
+                    }
+                }
+                assert!(!face_i.is_empty());
+                face_indices.push(face_i);
+                Ok(())
+            }
+            "l" => {
+                assert!(vals.len() >= 3);
+                let mut indices: Vec<usize> = Vec::new();
+                for val in vals.iter().skip(1) {
+                    let index: usize = val.parse().unwrap();
+                    indices.push(index - 1);
+                }
+                line_indices.push(indices);
+                Ok(())
+            }
+            _ => Ok(()),
+        }
     }
 }
 
