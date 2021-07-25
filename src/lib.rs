@@ -1,3 +1,4 @@
+pub mod gpu_immediate;
 pub mod shader;
 pub mod util;
 
