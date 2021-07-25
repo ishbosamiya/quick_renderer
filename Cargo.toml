@@ -12,3 +12,5 @@ gl = "0.14"
 egui = "0.13"
 egui_glfw = { git = "ssh://git@github.com/ishbosamiya/egui_glfw.git" }
 nalgebra-glm = "0.13"
+generational-arena = "0.2"
+itertools = "0.10"
