@@ -40,14 +40,47 @@ impl std::fmt::Display for MeshReaderError {
 impl std::error::Error for MeshReaderError {}
 
 impl MeshReader {
-    pub fn read(path: &Path) -> Result<MeshReader, MeshReaderError> {
+    pub fn read(path: &Path) -> Result<Self, MeshReaderError> {
         match path.extension() {
             Some(extension) => match extension.to_str().unwrap() {
-                "obj" => MeshReader::read_obj(path),
+                "obj" => Self::read_obj(path),
                 _ => Err(MeshReaderError::Unknown),
             },
             None => Err(MeshReaderError::Unknown),
         }
+    }
+
+    pub fn from_lines(lines: &[&str]) -> Result<Self, MeshReaderError> {
+        let mut positions = Vec::new();
+        let mut uvs = Vec::new();
+        let mut normals = Vec::new();
+        let mut face_indices = Vec::new();
+        let mut face_has_uv = false;
+        let mut face_has_normal = false;
+        let mut line_indices = Vec::new();
+
+        for line in lines {
+            Self::process_line(
+                line,
+                &mut positions,
+                &mut uvs,
+                &mut normals,
+                &mut face_indices,
+                &mut face_has_uv,
+                &mut face_has_normal,
+                &mut line_indices,
+            )?
+        }
+
+        Ok(MeshReader {
+            positions,
+            uvs,
+            normals,
+            face_indices,
+            face_has_uv,
+            face_has_normal,
+            line_indices,
+        })
     }
 
     fn read_obj(path: &Path) -> Result<MeshReader, MeshReaderError> {
