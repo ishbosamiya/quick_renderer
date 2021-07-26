@@ -6,6 +6,8 @@ use std::path::Path;
 use crate::glm;
 use crate::util::str_to_cstr;
 
+pub mod builtins;
+
 pub struct Shader {
     program_id: gl::types::GLuint,
 }

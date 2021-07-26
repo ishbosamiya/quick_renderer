@@ -15,3 +15,4 @@ pub use nalgebra_glm as glm;
 
 extern crate generational_arena;
 extern crate itertools;
+extern crate lazy_static;
