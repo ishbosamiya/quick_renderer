@@ -12,7 +12,7 @@ use quick_renderer::gpu_immediate::GPUImmediate;
 use quick_renderer::mesh::simple::Mesh;
 use quick_renderer::mesh::MeshDrawData;
 use quick_renderer::meshreader::MeshReader;
-use quick_renderer::shader::Shader;
+use quick_renderer::shader;
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -109,11 +109,9 @@ f 8/5/6 4/13/6 2/14/6 6/7/6
 
     let mut imm = GPUImmediate::new();
 
-    let directional_light_shader = Shader::from_strings(
-        include_str!("../shaders/directional_light.vert"),
-        include_str!("../shaders/directional_light.frag"),
-    )
-    .unwrap();
+    let directional_light_shader = shader::builtins::get_directional_light_shader()
+        .as_ref()
+        .unwrap();
 
     println!(
         "directional_light: uniforms: {:?} attributes: {:?}",
