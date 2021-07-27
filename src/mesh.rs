@@ -761,8 +761,7 @@ mod tests {
     #[test]
     fn mesh_read_test() {
         // TODO(ish): add more comprehensive relation tests
-        let mut mesh = simple::Mesh::new();
-        mesh.read(&Path::new("tests/obj_test_01.obj")).unwrap();
+        let mesh = simple::Mesh::read_from_file(&Path::new("tests/obj_test_01.obj")).unwrap();
         assert_eq!(mesh.faces.len(), 2);
         for (_, face) in &mesh.faces {
             assert_eq!(face.verts.len(), 3);
@@ -785,8 +784,7 @@ mod tests {
 
     #[test]
     fn mesh_no_uv() {
-        let mut mesh = simple::Mesh::new();
-        let res = mesh.read(&Path::new("tests/obj_test_05_square_no_uv.obj"));
+        let res = simple::Mesh::read_from_file(&Path::new("tests/obj_test_05_square_no_uv.obj"));
         if let Err(err) = res {
             match err {
                 MeshError::NoUV => {}
