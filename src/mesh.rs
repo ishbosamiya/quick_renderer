@@ -410,6 +410,12 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
         let data = MeshReader::read(path)?;
         Self::read(&data)
     }
+
+    pub fn apply_model_matrix(&mut self, model: &glm::DMat4) {
+        self.get_nodes_mut().iter_mut().for_each(|(_, node)| {
+            node.pos = glm::vec4_to_vec3(&(model * glm::vec3_to_vec4(&node.pos)));
+        });
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
