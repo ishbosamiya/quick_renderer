@@ -588,6 +588,15 @@ impl<T> Face<T> {
     pub fn get_verts(&self) -> &AdjacentVerts {
         &self.verts
     }
+
+    /// # Safety
+    ///
+    /// Use this only if you know what you are doing. It is
+    /// possible to completely destroy the Mesh structure by using
+    /// this
+    pub unsafe fn get_verts_mut(&mut self) -> &mut AdjacentVerts {
+        &mut self.verts
+    }
 }
 
 impl<T> Edge<T> {
@@ -646,6 +655,24 @@ impl<T> Edge<T> {
             self.verts = Some((v2_index, v1_index));
         }
     }
+
+    /// # Safety
+    ///
+    /// Use this only if you know what you are doing. It is
+    /// possible to completely destroy the Mesh structure by using
+    /// this
+    pub unsafe fn get_verts_mut(&mut self) -> &mut Option<(VertIndex, VertIndex)> {
+        &mut self.verts
+    }
+
+    /// # Safety
+    ///
+    /// Use this only if you know what you are doing. It is
+    /// possible to completely destroy the Mesh structure by using
+    /// this
+    pub unsafe fn get_faces_mut(&mut self) -> &mut IncidentFaces {
+        &mut self.faces
+    }
 }
 
 impl<T> Vert<T> {
@@ -663,6 +690,24 @@ impl<T> Vert<T> {
     pub fn get_node_index(&self) -> Option<NodeIndex> {
         self.node
     }
+
+    /// # Safety
+    ///
+    /// Use this only if you know what you are doing. It is
+    /// possible to completely destroy the Mesh structure by using
+    /// this
+    pub unsafe fn get_edges_mut(&mut self) -> &mut IncidentEdges {
+        &mut self.edges
+    }
+
+    /// # Safety
+    ///
+    /// Use this only if you know what you are doing. It is
+    /// possible to completely destroy the Mesh structure by using
+    /// this
+    pub unsafe fn get_node_mut(&mut self) -> &mut Option<NodeIndex> {
+        &mut self.node
+    }
 }
 
 impl<T> Node<T> {
@@ -679,6 +724,15 @@ impl<T> Node<T> {
 
     pub fn set_normal(&mut self, normal: glm::DVec3) {
         self.normal = Some(normal);
+    }
+
+    /// # Safety
+    ///
+    /// Use this only if you know what you are doing. It is
+    /// possible to completely destroy the Mesh structure by using
+    /// this
+    pub unsafe fn get_verts_mut(&mut self) -> &mut IncidentVerts {
+        &mut self.verts
     }
 }
 
