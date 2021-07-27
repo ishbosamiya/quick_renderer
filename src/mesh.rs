@@ -134,6 +134,20 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
         }
     }
 
+    pub fn from_arenas(
+        nodes: Arena<Node<END>>,
+        verts: Arena<Vert<EVD>>,
+        edges: Arena<Edge<EED>>,
+        faces: Arena<Face<EFD>>,
+    ) -> Self {
+        Self {
+            nodes,
+            verts,
+            edges,
+            faces,
+        }
+    }
+
     pub fn get_faces(&self) -> &Arena<Face<EFD>> {
         &self.faces
     }
