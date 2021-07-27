@@ -15,6 +15,7 @@ use crate::shader::Shader;
 /// (commonly referred to as Vertex Normals)
 ///
 /// Each Node can be referred to by many Verts
+#[derive(Debug)]
 pub struct Node<T> {
     self_index: NodeIndex,
     pub pos: glm::DVec3,
@@ -29,6 +30,7 @@ pub struct Node<T> {
 /// A Vert can only have one Node but this Node can be shared by many Verts
 ///
 /// Each Vert can be referred to by many Edges
+#[derive(Debug)]
 pub struct Vert<T> {
     self_index: VertIndex,
     pub uv: Option<glm::DVec2>,
@@ -42,6 +44,7 @@ pub struct Vert<T> {
 ///
 /// Each Edge has a pair of Verts (Made as Option because it may not
 /// have this information when it first is created)
+#[derive(Debug)]
 pub struct Edge<T> {
     self_index: EdgeIndex,
     pub extra_data: Option<T>,
@@ -53,6 +56,7 @@ pub struct Edge<T> {
 /// Face stores the vertices in order that form that face, this is done instead of storing edges to prevent winding/orientation problems with the mesh.
 ///
 /// Each Face also stores the face normal optionally
+#[derive(Debug)]
 pub struct Face<T> {
     self_index: FaceIndex,
     pub normal: Option<glm::DVec3>,
@@ -64,6 +68,7 @@ pub struct Face<T> {
 /// Mesh stores the Node, Vert, Edge, Face data in an Arena
 ///
 /// Mesh optionally stores a renderable mesh, GLMesh
+#[derive(Debug)]
 pub struct Mesh<END, EVD, EED, EFD> {
     nodes: Arena<Node<END>>,
     verts: Arena<Vert<EVD>>,
