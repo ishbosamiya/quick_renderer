@@ -416,7 +416,8 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
         // normal, etc.) need this model matrix applied. As of right
         // now, only assuming position and normal
         self.get_nodes_mut().iter_mut().for_each(|(_, node)| {
-            node.pos = glm::vec4_to_vec3(&(model * glm::vec3_to_vec4(&node.pos)));
+            node.pos =
+                glm::vec4_to_vec3(&(model * glm::vec4(node.pos[0], node.pos[1], node.pos[2], 1.0)));
             node.normal = node
                 .normal
                 .map(|normal| glm::vec4_to_vec3(&(model * glm::vec3_to_vec4(&normal))));
