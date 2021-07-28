@@ -630,6 +630,10 @@ impl<T> Edge<T> {
         &self.verts
     }
 
+    pub fn get_faces(&self) -> &IncidentFaces {
+        &self.faces
+    }
+
     /// Checks if self has the vert specified via VertIndex
     pub fn has_vert(&self, vert_index: VertIndex) -> bool {
         match self.verts {
@@ -699,8 +703,12 @@ impl<T> Vert<T> {
         }
     }
 
-    pub fn get_node_index(&self) -> Option<NodeIndex> {
-        self.node
+    pub fn get_node(&self) -> &Option<NodeIndex> {
+        &self.node
+    }
+
+    pub fn get_edges(&self) -> &IncidentEdges {
+        &self.edges
     }
 
     /// # Safety
@@ -736,6 +744,10 @@ impl<T> Node<T> {
 
     pub fn set_normal(&mut self, normal: glm::DVec3) {
         self.normal = Some(normal);
+    }
+
+    pub fn get_verts(&self) -> &IncidentVerts {
+        &self.verts
     }
 
     /// # Safety
