@@ -422,6 +422,11 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
                 .map(|normal| glm::vec4_to_vec3(&(model * glm::vec3_to_vec4(&normal))));
         });
     }
+
+    pub fn unapply_model_matrix(&mut self, model: &glm::DMat4) {
+        let inverse_model = model.try_inverse().unwrap();
+        self.apply_model_matrix(&inverse_model);
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
