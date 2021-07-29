@@ -428,6 +428,18 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
         let inverse_model = model.try_inverse().unwrap();
         self.apply_model_matrix(&inverse_model);
     }
+
+    /// Gets the nodes of the face in the same order as the verts of
+    /// the face.
+    ///
+    /// If the vert doesn't exist or the vert doesn't store
+    /// a node, that position will be None in the Vec
+    pub fn get_nodes_of_face(&mut self, face: &Face<EFD>) -> Vec<Option<NodeIndex>> {
+        face.get_verts()
+            .iter()
+            .map(|vert_index| self.get_vert(*vert_index).and_then(|vert| vert.node))
+            .collect()
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
