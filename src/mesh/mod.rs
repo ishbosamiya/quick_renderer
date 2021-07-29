@@ -9,6 +9,8 @@ use crate::gpu_immediate::*;
 use crate::meshreader::{MeshReader, MeshReaderError};
 use crate::shader::Shader;
 
+pub mod builtins;
+
 /// Node stores the world (3D) space coordinates
 ///
 /// Each Node also optionally stores 3D space normal information
