@@ -7,7 +7,7 @@ use crate::drawable::Drawable;
 use crate::glm;
 use crate::gpu_immediate::*;
 use crate::meshreader::{MeshReader, MeshReaderError};
-use crate::shader::Shader;
+use crate::shader;
 
 pub mod builtins;
 
@@ -442,51 +442,84 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
             .map(|vert_index| self.get_vert(*vert_index).and_then(|vert| vert.node))
             .collect()
     }
-}
 
-#[derive(Debug, Copy, Clone)]
-pub enum MeshDrawError {
-    GenerateGLMeshFirst,
-    ErrorWhileDrawing,
-}
+    fn draw_smooth_color_3d_shader(
+        &self,
+        draw_data: &mut MeshDrawData,
+    ) -> Result<(), MeshDrawError> {
+        let color = draw_data
+            .color
+            .ok_or(MeshDrawError::NoColorButSmoothColorShader)?;
 
-pub struct MeshDrawData<'a> {
-    imm: &'a mut GPUImmediate,
-    shader: &'a Shader,
-}
+        let imm = &mut draw_data.imm;
 
-impl<'a> MeshDrawData<'a> {
-    pub fn new(imm: &'a mut GPUImmediate, shader: &'a Shader) -> Self {
-        MeshDrawData { imm, shader }
-    }
-}
+        let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
+            .as_ref()
+            .unwrap();
 
-impl std::fmt::Display for MeshDrawError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            MeshDrawError::GenerateGLMeshFirst => {
-                write!(f, "Generate GLMesh before calling draw()")
-            }
-            MeshDrawError::ErrorWhileDrawing => {
-                write!(f, "Error while drawing Mesh")
+        smooth_color_3d_shader.use_shader();
+
+        let format = imm.get_cleared_vertex_format();
+        let pos_attr = format.add_attribute(
+            "in_pos\0".to_string(),
+            GPUVertCompType::F32,
+            3,
+            GPUVertFetchMode::Float,
+        );
+        let color_attr = format.add_attribute(
+            "in_color\0".to_string(),
+            GPUVertCompType::F32,
+            4,
+            GPUVertFetchMode::Float,
+        );
+
+        imm.begin_at_most(
+            GPUPrimType::Tris,
+            self.faces.len() * 10,
+            smooth_color_3d_shader,
+        );
+
+        for (_, face) in &self.faces {
+            let verts = &face.verts;
+            let vert_1_index = verts[0];
+            let vert_1 = self.verts.get(vert_1_index.0).unwrap();
+            let node_1 = self.nodes.get(vert_1.node.unwrap().0).unwrap();
+            for (vert_2_index, vert_3_index) in verts.iter().skip(1).tuple_windows() {
+                let vert_2 = self.verts.get(vert_2_index.0).unwrap();
+                let vert_3 = self.verts.get(vert_3_index.0).unwrap();
+
+                let node_2 = self.nodes.get(vert_2.node.unwrap().0).unwrap();
+                let node_3 = self.nodes.get(vert_3.node.unwrap().0).unwrap();
+
+                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                let node_1_pos: glm::Vec3 = glm::convert(node_1.pos);
+                imm.vertex_3f(pos_attr, node_1_pos[0], node_1_pos[1], node_1_pos[2]);
+
+                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                let node_2_pos: glm::Vec3 = glm::convert(node_2.pos);
+                imm.vertex_3f(pos_attr, node_2_pos[0], node_2_pos[1], node_2_pos[2]);
+
+                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                let node_3_pos: glm::Vec3 = glm::convert(node_3.pos);
+                imm.vertex_3f(pos_attr, node_3_pos[0], node_3_pos[1], node_3_pos[2]);
             }
         }
+
+        imm.end();
+
+        Ok(())
     }
-}
 
-impl std::error::Error for MeshDrawError {}
-
-impl From<()> for MeshDrawError {
-    fn from(_err: ()) -> MeshDrawError {
-        MeshDrawError::ErrorWhileDrawing
-    }
-}
-
-impl<END, EVD, EED, EFD> Drawable<MeshDrawData<'_>, MeshDrawError> for Mesh<END, EVD, EED, EFD> {
-    fn draw(&self, draw_data: &mut MeshDrawData) -> Result<(), MeshDrawError> {
+    fn draw_directional_light_shader(
+        &self,
+        draw_data: &mut MeshDrawData,
+    ) -> Result<(), MeshDrawError> {
         let imm = &mut draw_data.imm;
-        let shader = &draw_data.shader;
-        shader.use_shader();
+        let directional_light_shader = shader::builtins::get_directional_light_shader()
+            .as_ref()
+            .unwrap();
+
+        directional_light_shader.use_shader();
 
         let format = imm.get_cleared_vertex_format();
         let pos_attr = format.add_attribute(
@@ -508,7 +541,11 @@ impl<END, EVD, EED, EFD> Drawable<MeshDrawData<'_>, MeshDrawError> for Mesh<END,
             GPUVertFetchMode::Float,
         );
 
-        imm.begin_at_most(GPUPrimType::Tris, self.faces.len() * 10, shader);
+        imm.begin_at_most(
+            GPUPrimType::Tris,
+            self.faces.len() * 10,
+            directional_light_shader,
+        );
 
         for (_, face) in &self.faces {
             let verts = &face.verts;
@@ -561,11 +598,81 @@ impl<END, EVD, EED, EFD> Drawable<MeshDrawData<'_>, MeshDrawError> for Mesh<END,
 
         Ok(())
     }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum MeshDrawError {
+    GenerateGLMeshFirst,
+    ErrorWhileDrawing,
+    NoColorButSmoothColorShader,
+}
+
+pub enum MeshUseShader {
+    DirectionalLight,
+    SmoothColor3D,
+}
+
+pub struct MeshDrawData<'a> {
+    imm: &'a mut GPUImmediate,
+    use_shader: MeshUseShader,
+    color: Option<glm::Vec4>,
+}
+
+impl<'a> MeshDrawData<'a> {
+    pub fn new(
+        imm: &'a mut GPUImmediate,
+        use_shader: MeshUseShader,
+        color: Option<glm::Vec4>,
+    ) -> Self {
+        MeshDrawData {
+            imm,
+            use_shader,
+            color,
+        }
+    }
+}
+
+impl std::fmt::Display for MeshDrawError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MeshDrawError::GenerateGLMeshFirst => {
+                write!(f, "Generate GLMesh before calling draw()")
+            }
+            MeshDrawError::ErrorWhileDrawing => {
+                write!(f, "Error while drawing Mesh")
+            }
+            MeshDrawError::NoColorButSmoothColorShader => write!(
+                f,
+                "No color provided in draw data but asking to use smooth color 3D shader"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for MeshDrawError {}
+
+impl From<()> for MeshDrawError {
+    fn from(_err: ()) -> MeshDrawError {
+        MeshDrawError::ErrorWhileDrawing
+    }
+}
+
+impl<END, EVD, EED, EFD> Drawable<MeshDrawData<'_>, MeshDrawError> for Mesh<END, EVD, EED, EFD> {
+    fn draw(&self, draw_data: &mut MeshDrawData) -> Result<(), MeshDrawError> {
+        match draw_data.use_shader {
+            MeshUseShader::DirectionalLight => self.draw_directional_light_shader(draw_data),
+            MeshUseShader::SmoothColor3D => self.draw_smooth_color_3d_shader(draw_data),
+        }
+    }
 
     fn draw_wireframe(&self, draw_data: &mut MeshDrawData) -> Result<(), MeshDrawError> {
         let imm = &mut draw_data.imm;
-        let shader = &draw_data.shader;
-        shader.use_shader();
+
+        let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
+            .as_ref()
+            .unwrap();
+
+        smooth_color_3d_shader.use_shader();
 
         let format = imm.get_cleared_vertex_format();
         let pos_attr = format.add_attribute(
@@ -581,7 +688,11 @@ impl<END, EVD, EED, EFD> Drawable<MeshDrawData<'_>, MeshDrawError> for Mesh<END,
             GPUVertFetchMode::Float,
         );
 
-        imm.begin(GPUPrimType::Lines, self.edges.len() * 2, shader);
+        imm.begin(
+            GPUPrimType::Lines,
+            self.edges.len() * 2,
+            smooth_color_3d_shader,
+        );
 
         for (_, edge) in &self.edges {
             let (vert_1_index, vert_2_index) = edge.get_verts().unwrap();
