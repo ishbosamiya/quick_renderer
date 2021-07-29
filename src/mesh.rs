@@ -434,7 +434,7 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
     ///
     /// If the vert doesn't exist or the vert doesn't store
     /// a node, that position will be None in the Vec
-    pub fn get_nodes_of_face(&mut self, face: &Face<EFD>) -> Vec<Option<NodeIndex>> {
+    pub fn get_nodes_of_face(&self, face: &Face<EFD>) -> Vec<Option<NodeIndex>> {
         face.get_verts()
             .iter()
             .map(|vert_index| self.get_vert(*vert_index).and_then(|vert| vert.node))
