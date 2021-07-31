@@ -447,6 +447,10 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
         &self,
         draw_data: &mut MeshDrawData,
     ) -> Result<(), MeshDrawError> {
+        if self.faces.is_empty() {
+            return Ok(());
+        }
+
         let color = draw_data
             .color
             .ok_or(MeshDrawError::NoColorButSmoothColorShader)?;
@@ -514,6 +518,10 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
         &self,
         draw_data: &mut MeshDrawData,
     ) -> Result<(), MeshDrawError> {
+        if self.faces.is_empty() {
+            return Ok(());
+        }
+
         let imm = &mut draw_data.imm;
         let directional_light_shader = shader::builtins::get_directional_light_shader()
             .as_ref()
