@@ -6,6 +6,7 @@ use quick_renderer::camera::WindowCamera;
 use quick_renderer::drawable::Drawable;
 use quick_renderer::egui;
 use quick_renderer::egui_glfw;
+use quick_renderer::fps::FPS;
 use quick_renderer::glfw;
 use quick_renderer::glm;
 use quick_renderer::gpu_immediate::GPUImmediate;
@@ -130,6 +131,8 @@ f 8/5/6 4/13/6 2/14/6 6/7/6
 
     let mut last_cursor = window.get_cursor_pos();
 
+    let mut fps = FPS::default();
+
     while !window.should_close() {
         glfw.poll_events();
 
@@ -201,6 +204,7 @@ f 8/5/6 4/13/6 2/14/6 6/7/6
             egui.begin_frame(&window, &mut glfw);
             egui::Window::new("Hello world!").show(egui.get_egui_ctx(), |ui| {
                 ui.label("Hello World, Simple Render!");
+                ui.label(format!("fps: {:.2}", fps.update_and_get()));
             });
             let (width, height) = window.get_framebuffer_size();
             let _output = egui.end_frame(glm::vec2(width as _, height as _));
