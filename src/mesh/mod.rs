@@ -811,6 +811,10 @@ impl<T> Edge<T> {
         }
     }
 
+    pub fn is_loose(&self) -> bool {
+        self.faces.is_empty()
+    }
+
     /// # Safety
     ///
     /// Use this only if you know what you are doing. It is
