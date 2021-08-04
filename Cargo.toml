@@ -12,6 +12,7 @@ gl = "0.14"
 egui = "0.13"
 egui_glfw = { git = "ssh://git@github.com/ishbosamiya/egui_glfw.git" }
 nalgebra-glm = { version = "0.13", features = ["serde-serialize"] }
-generational-arena = "0.2"
+generational-arena = { version = "0.2", features = ["serde"] }
 itertools = "0.10"
 lazy_static = "1.4"
+serde = { version = "1.0", features = ["derive"] }

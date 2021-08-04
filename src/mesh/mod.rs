@@ -1,5 +1,6 @@
 use generational_arena::{Arena, Index};
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 
 use std::path::Path;
 
@@ -17,7 +18,7 @@ pub mod builtins;
 /// (commonly referred to as Vertex Normals)
 ///
 /// Each Node can be referred to by many Verts
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Node<T> {
     self_index: NodeIndex,
     pub pos: glm::DVec3,
@@ -32,7 +33,7 @@ pub struct Node<T> {
 /// A Vert can only have one Node but this Node can be shared by many Verts
 ///
 /// Each Vert can be referred to by many Edges
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Vert<T> {
     self_index: VertIndex,
     pub uv: Option<glm::DVec2>,
@@ -46,7 +47,7 @@ pub struct Vert<T> {
 ///
 /// Each Edge has a pair of Verts (Made as Option because it may not
 /// have this information when it first is created)
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Edge<T> {
     self_index: EdgeIndex,
     pub extra_data: Option<T>,
@@ -58,7 +59,7 @@ pub struct Edge<T> {
 /// Face stores the vertices in order that form that face, this is done instead of storing edges to prevent winding/orientation problems with the mesh.
 ///
 /// Each Face also stores the face normal optionally
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Face<T> {
     self_index: FaceIndex,
     pub normal: Option<glm::DVec3>,
@@ -70,7 +71,7 @@ pub struct Face<T> {
 /// Mesh stores the Node, Vert, Edge, Face data in an Arena
 ///
 /// Mesh optionally stores a renderable mesh, GLMesh
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Mesh<END, EVD, EED, EFD> {
     nodes: Arena<Node<END>>,
     verts: Arena<Vert<EVD>>,
@@ -79,16 +80,16 @@ pub struct Mesh<END, EVD, EED, EFD> {
 }
 
 /// Index of Node in Mesh.nodes
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct NodeIndex(pub Index);
 /// Index of Vert in Mesh.nodes
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct VertIndex(pub Index);
 /// Index of Edge in Mesh.nodes
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct EdgeIndex(pub Index);
 /// Index of Face in Mesh.nodes
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct FaceIndex(pub Index);
 
 type IncidentVerts = Vec<VertIndex>;
