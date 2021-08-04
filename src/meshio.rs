@@ -281,7 +281,7 @@ impl MeshIO {
         self.line_indices.iter().try_for_each(|line| {
             write!(file, "l")?;
             line.iter()
-                .try_for_each(|index| write!(file, " {}", index))?;
+                .try_for_each(|index| write!(file, " {}", index + 1))?;
             writeln!(file)
         })?;
 
