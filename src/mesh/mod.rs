@@ -7,7 +7,7 @@ use std::path::Path;
 use crate::drawable::Drawable;
 use crate::glm;
 use crate::gpu_immediate::*;
-use crate::meshreader::{MeshReader, MeshReaderError};
+use crate::meshio::{MeshIO, MeshIOError};
 use crate::shader;
 
 pub mod builtins;
@@ -100,20 +100,20 @@ type AdjacentVerts = IncidentVerts;
 /// Errors during operations on Mesh
 #[derive(Debug)]
 pub enum MeshError {
-    MeshReader(MeshReaderError),
+    MeshIO(MeshIOError),
     NoUV,
 }
 
-impl From<MeshReaderError> for MeshError {
-    fn from(err: MeshReaderError) -> MeshError {
-        MeshError::MeshReader(err)
+impl From<MeshIOError> for MeshError {
+    fn from(err: MeshIOError) -> MeshError {
+        MeshError::MeshIO(err)
     }
 }
 
 impl std::fmt::Display for MeshError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MeshError::MeshReader(error) => write!(f, "{}", error),
+            MeshError::MeshIO(error) => write!(f, "{}", error),
             MeshError::NoUV => write!(f, "No UV information found"),
         }
     }
@@ -395,7 +395,7 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
         None
     }
 
-    pub fn read(data: &MeshReader) -> Result<Self, MeshError> {
+    pub fn read(data: &MeshIO) -> Result<Self, MeshError> {
         let mut mesh = Mesh::new();
 
         if data.uvs.is_empty() || !data.face_has_uv {
@@ -524,7 +524,7 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
     }
 
     pub fn read_from_file(path: &Path) -> Result<Self, MeshError> {
-        let data = MeshReader::read(path)?;
+        let data = MeshIO::read(path)?;
         Self::read(&data)
     }
 

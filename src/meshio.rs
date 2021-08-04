@@ -1,10 +1,11 @@
 use crate::glm;
 
 use std::fs::File;
+use std::io::prelude::*;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
-pub struct MeshReader {
+pub struct MeshIO {
     pub positions: Vec<glm::DVec3>,
     pub uvs: Vec<glm::DVec2>,
     pub normals: Vec<glm::DVec3>,
@@ -15,42 +16,52 @@ pub struct MeshReader {
 }
 
 #[derive(Debug)]
-pub enum MeshReaderError {
+pub enum MeshIOError {
     Io(std::io::Error),
     InvalidFile,
     Unknown,
 }
 
-impl From<std::io::Error> for MeshReaderError {
-    fn from(err: std::io::Error) -> MeshReaderError {
-        MeshReaderError::Io(err)
+impl From<std::io::Error> for MeshIOError {
+    fn from(err: std::io::Error) -> MeshIOError {
+        MeshIOError::Io(err)
     }
 }
 
-impl std::fmt::Display for MeshReaderError {
+impl std::fmt::Display for MeshIOError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MeshReaderError::Io(error) => write!(f, "io error {}", error),
-            MeshReaderError::InvalidFile => write!(f, "invalid file"),
-            MeshReaderError::Unknown => write!(f, "unknown error"),
+            MeshIOError::Io(error) => write!(f, "io error {}", error),
+            MeshIOError::InvalidFile => write!(f, "invalid file"),
+            MeshIOError::Unknown => write!(f, "unknown error"),
         }
     }
 }
 
-impl std::error::Error for MeshReaderError {}
+impl std::error::Error for MeshIOError {}
 
-impl MeshReader {
-    pub fn read(path: &Path) -> Result<Self, MeshReaderError> {
+impl MeshIO {
+    pub fn read(path: &Path) -> Result<Self, MeshIOError> {
         match path.extension() {
             Some(extension) => match extension.to_str().unwrap() {
                 "obj" => Self::read_obj(path),
-                _ => Err(MeshReaderError::Unknown),
+                _ => Err(MeshIOError::Unknown),
             },
-            None => Err(MeshReaderError::Unknown),
+            None => Err(MeshIOError::Unknown),
         }
     }
 
-    pub fn from_lines(lines: &[&str]) -> Result<Self, MeshReaderError> {
+    pub fn write<P: AsRef<Path>>(&self, path: P) -> Result<(), MeshIOError> {
+        match path.as_ref().extension() {
+            Some(extension) => match extension.to_str().unwrap() {
+                "obj" => self.write_obj(path),
+                _ => Err(MeshIOError::Unknown),
+            },
+            None => Err(MeshIOError::Unknown),
+        }
+    }
+
+    pub fn from_lines(lines: &[&str]) -> Result<Self, MeshIOError> {
         let mut positions = Vec::new();
         let mut uvs = Vec::new();
         let mut normals = Vec::new();
@@ -72,7 +83,7 @@ impl MeshReader {
             )?
         }
 
-        Ok(MeshReader {
+        Ok(MeshIO {
             positions,
             uvs,
             normals,
@@ -83,7 +94,7 @@ impl MeshReader {
         })
     }
 
-    fn read_obj(path: &Path) -> Result<MeshReader, MeshReaderError> {
+    fn read_obj(path: &Path) -> Result<MeshIO, MeshIOError> {
         let fin = File::open(path)?;
         let mut positions = Vec::new();
         let mut uvs = Vec::new();
@@ -110,7 +121,7 @@ impl MeshReader {
 
         // TODO(ish): validate the indices
 
-        Ok(MeshReader {
+        Ok(MeshIO {
             positions,
             uvs,
             normals,
@@ -131,7 +142,7 @@ impl MeshReader {
         face_has_uv: &mut bool,
         face_has_normal: &mut bool,
         line_indices: &mut Vec<Vec<usize>>,
-    ) -> Result<(), MeshReaderError> {
+    ) -> Result<(), MeshIOError> {
         if line.starts_with('#') {
             return Ok(());
         }
@@ -202,7 +213,7 @@ impl MeshReader {
                             *face_has_normal = true;
                         }
                         _ => {
-                            return Err(MeshReaderError::InvalidFile);
+                            return Err(MeshIOError::InvalidFile);
                         }
                     }
                 }
@@ -223,6 +234,47 @@ impl MeshReader {
             _ => Ok(()),
         }
     }
+
+    fn write_obj<P: AsRef<Path>>(&self, path: P) -> Result<(), MeshIOError> {
+        let mut file = std::fs::File::open(path)?;
+        self.positions
+            .iter()
+            .try_for_each(|pos| writeln!(file, "v {} {} {}", pos[0], pos[1], pos[2]))?;
+
+        self.uvs
+            .iter()
+            .try_for_each(|uv| writeln!(file, "vt {} {}", uv[0], uv[1]))?;
+
+        self.normals.iter().try_for_each(|normal| {
+            writeln!(file, "vn {} {} {}", normal[0], normal[1], normal[2])
+        })?;
+
+        self.face_indices.iter().try_for_each(|face| {
+            write!(file, "f")?;
+            face.iter()
+                .try_for_each(|(pos_index, uv_index, normal_index)| {
+                    // TODO(ish): support uv index and normal index being invalid
+
+                    write!(
+                        file,
+                        " {}/{}/{}",
+                        pos_index + 1,
+                        uv_index + 1,
+                        normal_index + 1
+                    )
+                })?;
+            writeln!(file)
+        })?;
+
+        self.line_indices.iter().try_for_each(|line| {
+            write!(file, "l")?;
+            line.iter()
+                .try_for_each(|index| write!(file, " {}", index))?;
+            writeln!(file)
+        })?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -230,7 +282,7 @@ mod tests {
     use super::*;
     #[test]
     fn meshreader_read_obj_test_01() {
-        let data = MeshReader::read_obj(&Path::new("tests/obj_test_01.obj")).unwrap();
+        let data = MeshIO::read_obj(&Path::new("tests/obj_test_01.obj")).unwrap();
         assert_eq!(data.positions.len(), 5);
         assert_eq!(data.uvs.len(), 6);
         assert_eq!(data.normals.len(), 2);
@@ -242,9 +294,9 @@ mod tests {
     }
     #[test]
     fn meshreader_read_obj_test_02() {
-        match MeshReader::read_obj(&Path::new("tests/obj_test_02.obj")) {
+        match MeshIO::read_obj(&Path::new("tests/obj_test_02.obj")) {
             Err(error) => match error {
-                MeshReaderError::InvalidFile => (),
+                MeshIOError::InvalidFile => (),
                 _ => panic!("Should have gotten an invalid file error"),
             },
             Ok(_) => panic!("Should have gotten an invalid file error"),
@@ -252,6 +304,6 @@ mod tests {
     }
     #[test]
     fn meshreader_read_obj_test_03() {
-        MeshReader::read_obj(&Path::new("tests/obj_test_03.obj")).unwrap();
+        MeshIO::read_obj(&Path::new("tests/obj_test_03.obj")).unwrap();
     }
 }

@@ -3,7 +3,7 @@ pub mod drawable;
 pub mod fps;
 pub mod gpu_immediate;
 pub mod mesh;
-pub mod meshreader;
+pub mod meshio;
 pub mod shader;
 pub mod util;
 

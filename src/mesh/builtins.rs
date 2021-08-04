@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 
-use crate::meshreader::MeshReader;
+use crate::meshio::MeshIO;
 
 use super::simple::Mesh;
 
@@ -10,7 +10,7 @@ macro_rules! load_builtin_mesh {
             static ref $static_name: Mesh = {
                 let file = $get_str_name();
                 let lines: Vec<&str> = file.split('\n').collect();
-                let reader = MeshReader::from_lines(&lines).unwrap();
+                let reader = MeshIO::from_lines(&lines).unwrap();
                 Mesh::read(&reader).unwrap()
             };
         }
