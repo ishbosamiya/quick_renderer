@@ -215,6 +215,120 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
         self.nodes.get_mut(index.0)
     }
 
+    pub fn get_checked_verts_of_edge(
+        &self,
+        edge: &Edge<EED>,
+        verts_swapped: bool,
+    ) -> (&Vert<EVD>, &Vert<EVD>) {
+        let verts = edge.get_verts().unwrap();
+
+        if verts_swapped {
+            (
+                self.get_vert(verts.1).unwrap(),
+                self.get_vert(verts.0).unwrap(),
+            )
+        } else {
+            (
+                self.get_vert(verts.0).unwrap(),
+                self.get_vert(verts.1).unwrap(),
+            )
+        }
+    }
+
+    pub fn get_checked_nodes_of_edge(
+        &self,
+        edge: &Edge<EED>,
+        nodes_swapped: bool,
+    ) -> (&Node<END>, &Node<END>) {
+        let (v1, v2) = self.get_checked_verts_of_edge(edge, nodes_swapped);
+
+        (
+            self.get_node(v1.node.unwrap()).unwrap(),
+            self.get_node(v2.node.unwrap()).unwrap(),
+        )
+    }
+
+    pub fn get_connecting_edge_indices(&self, n1: &Node<END>, n2: &Node<END>) -> Vec<EdgeIndex> {
+        n1.get_verts()
+            .iter()
+            .flat_map(|v1_index| {
+                n2.get_verts()
+                    .iter()
+                    .map(move |v2_index| (v1_index, v2_index))
+            })
+            .filter_map(|(v1_index, v2_index)| self.get_connecting_edge_index(*v1_index, *v2_index))
+            .collect()
+    }
+
+    pub fn is_edge_loose(&self, edge: &Edge<EED>) -> bool {
+        edge.is_loose()
+    }
+
+    pub fn is_edge_on_seam(&self, edge: &Edge<EED>) -> bool {
+        edge.is_on_seam()
+    }
+
+    pub fn is_edge_on_boundary(&self, edge: &Edge<EED>) -> bool {
+        let (n1, n2) = self.get_checked_nodes_of_edge(edge, false);
+        let edge_indices = self.get_connecting_edge_indices(n1, n2);
+
+        let num_faces = edge_indices.iter().try_fold(0, |acc, e_index| {
+            let val = acc + self.get_edge(*e_index).unwrap().get_faces().len();
+            if val > 1 {
+                None
+            } else {
+                Some(val)
+            }
+        });
+        num_faces.is_some()
+    }
+
+    pub fn is_edge_loose_or_on_seam_or_boundary(&self, edge: &Edge<EED>) -> bool {
+        self.is_edge_loose(edge) || self.is_edge_on_seam(edge) || self.is_edge_on_boundary(edge)
+    }
+
+    pub fn is_edge_flippable(&self, edge: &Edge<EED>, across_seams: bool) -> bool {
+        if across_seams {
+            todo!("Need to handle across seams")
+        }
+
+        // ensure 2 faces only
+        if edge.get_faces().len() != 2 {
+            return false;
+        }
+
+        // ensure triangulation
+        edge.get_faces()
+            .iter()
+            .try_for_each(|face_index| {
+                (self.get_face(*face_index).unwrap().get_verts().len() == 3).then(|| ())
+            })
+            .is_some()
+    }
+
+    pub fn get_checked_other_vert_index(
+        &self,
+        edge_index: EdgeIndex,
+        face_index: FaceIndex,
+    ) -> VertIndex {
+        let face = self.get_face(face_index).unwrap();
+
+        assert_eq!(face.get_verts().len(), 3);
+
+        let edge = self.get_edge(edge_index).unwrap();
+
+        assert!(edge.get_faces().contains(&face_index));
+
+        if !edge.has_vert(face.get_verts()[0]) {
+            face.get_verts()[0]
+        } else if !edge.has_vert(face.get_verts()[1]) {
+            face.get_verts()[1]
+        } else {
+            assert!(!edge.has_vert(face.get_verts()[2]));
+            face.get_verts()[2]
+        }
+    }
+
     /// Adds an empty Node and gives back mutable reference to it
     ///
     /// Use with caution
@@ -814,6 +928,10 @@ impl<T> Edge<T> {
 
     pub fn is_loose(&self) -> bool {
         self.faces.is_empty()
+    }
+
+    pub fn is_on_seam(&self) -> bool {
+        self.get_faces().len() == 1
     }
 
     /// # Safety
