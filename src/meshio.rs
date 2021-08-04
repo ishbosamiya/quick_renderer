@@ -248,7 +248,7 @@ impl MeshIO {
     }
 
     fn write_obj<P: AsRef<Path>>(&self, path: P) -> Result<(), MeshIOError> {
-        let mut file = std::fs::File::open(path)?;
+        let mut file = std::fs::File::create(path)?;
         self.positions
             .iter()
             .try_for_each(|pos| writeln!(file, "v {} {} {}", pos[0], pos[1], pos[2]))?;
