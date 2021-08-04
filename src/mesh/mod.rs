@@ -2,6 +2,7 @@ use generational_arena::{Arena, Index};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
+use std::collections::HashMap;
 use std::path::Path;
 
 use crate::drawable::Drawable;
@@ -393,6 +394,71 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
         }
 
         None
+    }
+
+    pub fn write(&self) -> MeshIO {
+        let mut meshio = MeshIO::new();
+
+        let mut pos_index_map = HashMap::new();
+        let mut uv_index_map = HashMap::new();
+
+        let mut true_pos_index = 0;
+        self.get_nodes().iter().for_each(|(_, node)| {
+            meshio.positions.push(node.pos);
+
+            meshio.normals.push(node.normal.unwrap());
+
+            pos_index_map.insert(node.self_index, true_pos_index);
+            true_pos_index += 1;
+        });
+        assert_eq!(true_pos_index, self.get_nodes().len());
+
+        let mut true_uv_index = 0;
+        self.get_verts().iter().for_each(|(_, vert)| {
+            meshio.uvs.push(vert.uv.unwrap());
+
+            uv_index_map.insert(vert.self_index, true_uv_index);
+            true_uv_index += 1;
+        });
+
+        assert_eq!(true_uv_index, self.get_verts().len());
+
+        self.get_faces().iter().for_each(|(_, face)| {
+            let mut io_face: Vec<(usize, usize, usize)> = Vec::new();
+
+            face.get_verts().iter().for_each(|vert_index| {
+                let vert = self.get_vert(*vert_index).unwrap();
+
+                let pos_index = pos_index_map.get(&vert.node.unwrap()).unwrap();
+                let uv_index = uv_index_map.get(&vert.self_index).unwrap();
+                let normal_index = pos_index;
+
+                io_face.push((*pos_index, *uv_index, *normal_index));
+            });
+
+            meshio.face_indices.push(io_face);
+        });
+
+        self.get_edges()
+            .iter()
+            .filter(|(_, edge)| edge.is_loose())
+            .for_each(|(_, edge)| {
+                let (v1_index, v2_index) = edge.verts.unwrap();
+
+                let v1 = self.get_vert(v1_index).unwrap();
+                let v2 = self.get_vert(v2_index).unwrap();
+
+                meshio.line_indices.push(vec![
+                    *pos_index_map.get(&v1.node.unwrap()).unwrap(),
+                    *pos_index_map.get(&v2.node.unwrap()).unwrap(),
+                ]);
+            });
+
+        // TODO(ish): this is forced, need to convert to better error handled thing
+        meshio.face_has_normal = true;
+        meshio.face_has_uv = true;
+
+        meshio
     }
 
     pub fn read(data: &MeshIO) -> Result<Self, MeshError> {

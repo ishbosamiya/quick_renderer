@@ -41,6 +41,18 @@ impl std::fmt::Display for MeshIOError {
 impl std::error::Error for MeshIOError {}
 
 impl MeshIO {
+    pub fn new() -> Self {
+        Self {
+            positions: Vec::new(),
+            uvs: Vec::new(),
+            normals: Vec::new(),
+            face_indices: Vec::new(),
+            face_has_uv: false,
+            face_has_normal: false,
+            line_indices: Vec::new(),
+        }
+    }
+
     pub fn read(path: &Path) -> Result<Self, MeshIOError> {
         match path.extension() {
             Some(extension) => match extension.to_str().unwrap() {
@@ -274,6 +286,12 @@ impl MeshIO {
         })?;
 
         Ok(())
+    }
+}
+
+impl Default for MeshIO {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
