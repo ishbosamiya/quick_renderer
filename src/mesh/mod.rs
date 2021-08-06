@@ -299,12 +299,30 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
         }
 
         // ensure triangulation
-        edge.get_faces()
+        if edge
+            .get_faces()
             .iter()
             .try_for_each(|face_index| {
                 (self.get_face(*face_index).unwrap().get_verts().len() == 3).then(|| ())
             })
+            .is_none()
+        {
+            return false;
+        }
+
+        // ensure no connecting edge between ov1 and ov2
+        let ov1_index =
+            self.get_checked_other_vert_index(edge.get_self_index(), edge.get_faces()[0]);
+        let ov2_index =
+            self.get_checked_other_vert_index(edge.get_self_index(), edge.get_faces()[1]);
+        if self
+            .get_connecting_edge_index(ov1_index, ov2_index)
             .is_some()
+        {
+            return false;
+        }
+
+        true
     }
 
     pub fn get_checked_other_vert_index(
