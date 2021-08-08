@@ -4,6 +4,10 @@
 
 in vec3 from_vert_near_point;
 in vec3 from_vert_far_point;
+in float from_vert_scene_near;
+in float from_vert_scene_far;
+in mat4 frag_projection;
+in mat4 frag_view;
 
 out vec4 FragColor;
 
@@ -26,8 +30,26 @@ vec4 grid(vec3 frag_pos_3d, float scale) {
 	return color;
 }
 
+float compute_depth(vec3 pos) {
+	vec4 clip_space_pos = frag_projection * frag_view * vec4(pos.xyz, 1.0);
+	return (clip_space_pos.z / clip_space_pos.w);
+}
+
+float compute_linear_depth(vec3 pos) {
+	vec4 clip_space_pos = frag_projection * frag_view * vec4(pos.xyz, 1.0);
+	float clip_space_depth = (clip_space_pos.z / clip_space_pos.w) * 2.0 - 1.0; // put back between -1 and 1
+	float linear_depth = (2.0 * from_vert_scene_near * from_vert_scene_far) / (from_vert_scene_far + from_vert_scene_near - clip_space_depth * (from_vert_scene_far - from_vert_scene_near));
+	return linear_depth / from_vert_scene_far; // normalize
+}
+
 void main() {
 	float t = -from_vert_near_point.y / (from_vert_far_point.y - from_vert_near_point.y);
 	vec3 frag_pos_3d = from_vert_near_point + t * (from_vert_far_point - from_vert_near_point);
-	FragColor = grid(frag_pos_3d, 10) * float(t > 0.0);
+	gl_FragDepth = compute_depth(frag_pos_3d);
+
+	float linear_depth = compute_linear_depth(frag_pos_3d);
+	float fading = max(0, (0.5 - linear_depth));
+
+	FragColor = (grid(frag_pos_3d, 10) + grid(frag_pos_3d, 1)) * float(t > 0.0);
+	FragColor.a *= fading;
 }

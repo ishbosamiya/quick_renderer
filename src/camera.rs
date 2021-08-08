@@ -10,6 +10,8 @@ pub struct WindowCamera {
     yaw: f64,
     pitch: f64,
     zoom: f64,
+    near_plane: f64,
+    far_plane: f64,
 }
 
 impl WindowCamera {
@@ -29,6 +31,8 @@ impl WindowCamera {
             right: glm::zero(),
             up,
             zoom,
+            near_plane: 0.1,
+            far_plane: 1000.0,
         };
 
         camera.update_camera_vectors();
@@ -58,6 +62,14 @@ impl WindowCamera {
         self.front
     }
 
+    pub fn get_near_plane(&self) -> f64 {
+        self.near_plane
+    }
+
+    pub fn get_far_plane(&self) -> f64 {
+        self.far_plane
+    }
+
     pub fn get_view_matrix(&self) -> glm::DMat4 {
         glm::look_at(&self.position, &(self.position + self.front), &self.up)
     }
@@ -67,14 +79,21 @@ impl WindowCamera {
         glm::perspective(
             width as f64 / height as f64,
             self.zoom.to_radians(),
-            0.1,
-            1000.0,
+            self.near_plane,
+            self.far_plane,
         )
     }
 
     pub fn get_ortho_matrix(&self, window: &glfw::Window) -> glm::DMat4 {
         let (width, height) = window.get_size();
-        glm::ortho(0.0, width as f64, 0.0, height as f64, 0.1, 1000.0)
+        glm::ortho(
+            0.0,
+            width as f64,
+            0.0,
+            height as f64,
+            self.near_plane,
+            self.far_plane,
+        )
     }
 
     pub fn pan(

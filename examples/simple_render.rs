@@ -38,13 +38,6 @@ fn main() {
         gl::Disable(gl::CULL_FACE);
         gl::Enable(gl::DEPTH_TEST);
         gl::Enable(gl::MULTISAMPLE);
-        gl::Enable(gl::BLEND);
-        gl::BlendFuncSeparate(
-            gl::ONE,
-            gl::ONE_MINUS_SRC_ALPHA,
-            gl::ONE,
-            gl::ONE_MINUS_SRC_ALPHA,
-        );
     }
 
     // setup the egui backend
@@ -165,14 +158,12 @@ f 8/5/6 4/13/6 2/14/6 6/7/6
 
         // Shader stuff
         {
+            let projection_matrix = &glm::convert(camera.get_projection_matrix(&window));
+            let view_matrix = &glm::convert(camera.get_view_matrix());
             {
                 directional_light_shader.use_shader();
-                directional_light_shader.set_mat4(
-                    "projection\0",
-                    &glm::convert(camera.get_projection_matrix(&window)),
-                );
-                directional_light_shader
-                    .set_mat4("view\0", &glm::convert(camera.get_view_matrix()));
+                directional_light_shader.set_mat4("projection\0", projection_matrix);
+                directional_light_shader.set_mat4("view\0", view_matrix);
                 directional_light_shader.set_mat4("model\0", &glm::identity());
                 directional_light_shader
                     .set_vec3("viewPos\0", &glm::convert(camera.get_position()));
@@ -188,22 +179,18 @@ f 8/5/6 4/13/6 2/14/6 6/7/6
 
             {
                 smooth_color_3d_shader.use_shader();
-                smooth_color_3d_shader.set_mat4(
-                    "projection\0",
-                    &glm::convert(camera.get_projection_matrix(&window)),
-                );
-                smooth_color_3d_shader.set_mat4("view\0", &glm::convert(camera.get_view_matrix()));
+                smooth_color_3d_shader.set_mat4("projection\0", projection_matrix);
+                smooth_color_3d_shader.set_mat4("view\0", view_matrix);
                 smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
             }
 
             {
                 infinite_grid_shader.use_shader();
-                infinite_grid_shader.set_mat4(
-                    "projection\0",
-                    &glm::convert(camera.get_projection_matrix(&window)),
-                );
-                infinite_grid_shader.set_mat4("view\0", &glm::convert(camera.get_view_matrix()));
+                infinite_grid_shader.set_mat4("projection\0", projection_matrix);
+                infinite_grid_shader.set_mat4("view\0", view_matrix);
                 infinite_grid_shader.set_mat4("model\0", &glm::identity());
+                infinite_grid_shader.set_float("scene_near\0", camera.get_near_plane() as f32);
+                infinite_grid_shader.set_float("scene_far\0", camera.get_far_plane() as f32);
             }
         }
 
@@ -232,6 +219,10 @@ f 8/5/6 4/13/6 2/14/6 6/7/6
         .unwrap();
 
         {
+            unsafe {
+                gl::Enable(gl::BLEND);
+                gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+            }
             infinite_grid_shader.use_shader();
 
             let format = imm.get_cleared_vertex_format();
@@ -262,6 +253,9 @@ f 8/5/6 4/13/6 2/14/6 6/7/6
             });
 
             imm.end();
+            unsafe {
+                gl::Disable(gl::BLEND);
+            }
         }
 
         // GUI starts
