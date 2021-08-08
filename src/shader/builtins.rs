@@ -2,41 +2,41 @@ use lazy_static::lazy_static;
 
 use super::{Shader, ShaderError};
 
-lazy_static! {
-    static ref DIRECTIONAL_LIGHT: Result<Shader, ShaderError> = {
-        Shader::from_strings(
-            get_directional_light_vert_code(),
-            get_directional_light_frag_code(),
-        )
+macro_rules! load_builtin_shader {
+    ( $get_shader:ident ; $get_vert_code:ident ; $get_frag_code:ident ; $vert_location:tt ; $frag_location:tt ; $static_name:ident ) => {
+        lazy_static! {
+            static ref $static_name: Result<Shader, ShaderError> =
+                { Shader::from_strings($get_vert_code(), $get_frag_code(),) };
+        }
+
+        pub fn $get_vert_code() -> &'static str {
+            include_str!($vert_location)
+        }
+
+        pub fn $get_frag_code() -> &'static str {
+            include_str!($frag_location)
+        }
+
+        pub fn $get_shader() -> &'static Result<Shader, ShaderError> {
+            &$static_name
+        }
     };
-    static ref SMOOTH_COLOR_3D: Result<Shader, ShaderError> = {
-        Shader::from_strings(
-            get_smooth_color_3d_vert_code(),
-            get_smooth_color_3d_frag_code(),
-        )
-    };
 }
 
-pub fn get_directional_light_vert_code() -> &'static str {
-    include_str!("../../shaders/directional_light.vert")
-}
+load_builtin_shader!(
+    get_directional_light_shader;
+    get_directional_light_vert_code;
+    get_directional_light_frag_code;
+    "../../shaders/directional_light.vert";
+    "../../shaders/directional_light.frag";
+    DIRECTIONAL_LIGHT
+);
 
-pub fn get_directional_light_frag_code() -> &'static str {
-    include_str!("../../shaders/directional_light.frag")
-}
-
-pub fn get_directional_light_shader() -> &'static Result<Shader, ShaderError> {
-    &DIRECTIONAL_LIGHT
-}
-
-pub fn get_smooth_color_3d_vert_code() -> &'static str {
-    include_str!("../../shaders/shader_3D_smooth_color.vert")
-}
-
-pub fn get_smooth_color_3d_frag_code() -> &'static str {
-    include_str!("../../shaders/shader_3D_smooth_color.frag")
-}
-
-pub fn get_smooth_color_3d_shader() -> &'static Result<Shader, ShaderError> {
-    &SMOOTH_COLOR_3D
-}
+load_builtin_shader!(
+    get_smooth_color_3d_shader;
+    get_smooth_color_3d_vert_code;
+    get_smooth_color_3d_frag_code;
+    "../../shaders/shader_3D_smooth_color.vert";
+    "../../shaders/shader_3D_smooth_color.frag";
+    SMOOTH_COLOR_3D
+);
