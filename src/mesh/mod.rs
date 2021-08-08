@@ -902,6 +902,7 @@ pub enum MeshDrawError {
     NoColorButSmoothColorShader,
 }
 
+#[derive(Debug, Copy, Clone)]
 pub enum MeshUseShader {
     DirectionalLight,
     SmoothColor3D,
