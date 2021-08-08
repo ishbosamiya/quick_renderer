@@ -38,6 +38,13 @@ fn main() {
         gl::Disable(gl::CULL_FACE);
         gl::Enable(gl::DEPTH_TEST);
         gl::Enable(gl::MULTISAMPLE);
+        gl::Enable(gl::BLEND);
+        gl::BlendFuncSeparate(
+            gl::ONE,
+            gl::ONE_MINUS_SRC_ALPHA,
+            gl::ONE,
+            gl::ONE_MINUS_SRC_ALPHA,
+        );
     }
 
     // setup the egui backend
@@ -152,6 +159,7 @@ f 8/5/6 4/13/6 2/14/6 6/7/6
         });
 
         unsafe {
+            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
 

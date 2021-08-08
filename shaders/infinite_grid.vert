@@ -8,13 +8,18 @@ uniform mat4 projection;
 
 in vec3 in_pos;
 
-// Grid position are in xy clipped space
-vec3 gridPlane[6] = vec3[](
-													 vec3(1, 1, 0), vec3(-1, -1, 0), vec3(-1, 1, 0),
-													 vec3(-1, -1, 0), vec3(1, 1, 0), vec3(1, -1, 0)
-													 );
+out vec3 from_vert_near_point;
+out vec3 from_vert_far_point;
 
-// normal vertice projection
+vec3 unproject_point(float x, float y, float z, mat4 view, mat4 projection) {
+	mat4 view_inv = inverse(view);
+	mat4 proj_inv = inverse(projection);
+	vec4 unprojected_point =  view_inv * proj_inv * vec4(x, y, z, 1.0);
+	return unprojected_point.xyz / unprojected_point.w;
+}
+
 void main() {
-	gl_Position = projection * view * vec4(in_pos, 1.0);
+	from_vert_near_point = unproject_point(in_pos.x, in_pos.y, 0.0, view, projection).xyz;
+	from_vert_far_point = unproject_point(in_pos.x, in_pos.y, 1.0, view, projection).xyz;
+	gl_Position = vec4(in_pos, 1.0);
 }
