@@ -3,6 +3,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::path::Path;
 
 use crate::drawable::Drawable;
@@ -907,6 +908,16 @@ pub enum MeshUseShader {
     DirectionalLight,
     SmoothColor3D,
     FaceOrientation,
+}
+
+impl Display for MeshUseShader {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MeshUseShader::DirectionalLight => write!(f, "Directional Light"),
+            MeshUseShader::SmoothColor3D => write!(f, "Smooth Color 3D"),
+            MeshUseShader::FaceOrientation => write!(f, "Face Orientation"),
+        }
+    }
 }
 
 pub struct MeshDrawData<'a> {
