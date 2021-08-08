@@ -121,6 +121,9 @@ f 8/5/6 4/13/6 2/14/6 6/7/6
     let infinite_grid_shader = shader::builtins::get_infinite_grid_shader()
         .as_ref()
         .unwrap();
+    let face_orientation_shader = shader::builtins::get_face_orientation_shader()
+        .as_ref()
+        .unwrap();
 
     println!(
         "directional_light: uniforms: {:?} attributes: {:?}",
@@ -136,6 +139,11 @@ f 8/5/6 4/13/6 2/14/6 6/7/6
         "infinite_grid: uniforms: {:?} attributes: {:?}",
         infinite_grid_shader.get_uniforms(),
         infinite_grid_shader.get_attributes(),
+    );
+    println!(
+        "face_orientation: uniforms: {:?} attributes: {:?}",
+        face_orientation_shader.get_uniforms(),
+        face_orientation_shader.get_attributes(),
     );
 
     let mut last_cursor = window.get_cursor_pos();
@@ -190,6 +198,17 @@ f 8/5/6 4/13/6 2/14/6 6/7/6
                 infinite_grid_shader.set_mat4("view\0", view_matrix);
                 infinite_grid_shader.set_mat4("model\0", &glm::identity());
             }
+
+            {
+                face_orientation_shader.use_shader();
+                face_orientation_shader.set_mat4("projection\0", projection_matrix);
+                face_orientation_shader.set_mat4("view\0", view_matrix);
+                face_orientation_shader.set_mat4("model\0", &glm::identity());
+                face_orientation_shader
+                    .set_vec4("color_face_front\0", &glm::vec4(0.0, 0.0, 1.0, 1.0));
+                face_orientation_shader
+                    .set_vec4("color_face_back\0", &glm::vec4(1.0, 0.0, 0.0, 1.0));
+            }
         }
 
         directional_light_shader.use_shader();
@@ -213,6 +232,18 @@ f 8/5/6 4/13/6 2/14/6 6/7/6
             &mut imm,
             MeshUseShader::SmoothColor3D,
             Some(glm::vec4(1.0, 0.2, 0.5, 1.0)),
+        ))
+        .unwrap();
+
+        face_orientation_shader.use_shader();
+        face_orientation_shader.set_mat4(
+            "model\0",
+            &glm::translate(&glm::identity(), &glm::vec3(0.0, 2.1, 0.0)),
+        );
+        mesh.draw(&mut MeshDrawData::new(
+            &mut imm,
+            MeshUseShader::FaceOrientation,
+            None,
         ))
         .unwrap();
 

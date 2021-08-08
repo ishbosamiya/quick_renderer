@@ -672,6 +672,64 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
             .collect()
     }
 
+    fn draw_face_orientation_shader(
+        &self,
+        draw_data: &mut MeshDrawData,
+    ) -> Result<(), MeshDrawError> {
+        if self.faces.is_empty() {
+            return Ok(());
+        }
+
+        let imm = &mut draw_data.imm;
+
+        let face_orientation_shader = shader::builtins::get_face_orientation_shader()
+            .as_ref()
+            .unwrap();
+
+        face_orientation_shader.use_shader();
+
+        let format = imm.get_cleared_vertex_format();
+        let pos_attr = format.add_attribute(
+            "in_pos\0".to_string(),
+            GPUVertCompType::F32,
+            3,
+            GPUVertFetchMode::Float,
+        );
+
+        imm.begin_at_most(
+            GPUPrimType::Tris,
+            self.faces.len() * 10,
+            face_orientation_shader,
+        );
+
+        for (_, face) in &self.faces {
+            let verts = &face.verts;
+            let vert_1_index = verts[0];
+            let vert_1 = self.verts.get(vert_1_index.0).unwrap();
+            let node_1 = self.nodes.get(vert_1.node.unwrap().0).unwrap();
+            for (vert_2_index, vert_3_index) in verts.iter().skip(1).tuple_windows() {
+                let vert_2 = self.verts.get(vert_2_index.0).unwrap();
+                let vert_3 = self.verts.get(vert_3_index.0).unwrap();
+
+                let node_2 = self.nodes.get(vert_2.node.unwrap().0).unwrap();
+                let node_3 = self.nodes.get(vert_3.node.unwrap().0).unwrap();
+
+                let node_1_pos: glm::Vec3 = glm::convert(node_1.pos);
+                imm.vertex_3f(pos_attr, node_1_pos[0], node_1_pos[1], node_1_pos[2]);
+
+                let node_2_pos: glm::Vec3 = glm::convert(node_2.pos);
+                imm.vertex_3f(pos_attr, node_2_pos[0], node_2_pos[1], node_2_pos[2]);
+
+                let node_3_pos: glm::Vec3 = glm::convert(node_3.pos);
+                imm.vertex_3f(pos_attr, node_3_pos[0], node_3_pos[1], node_3_pos[2]);
+            }
+        }
+
+        imm.end();
+
+        Ok(())
+    }
+
     fn draw_smooth_color_3d_shader(
         &self,
         draw_data: &mut MeshDrawData,
@@ -847,6 +905,7 @@ pub enum MeshDrawError {
 pub enum MeshUseShader {
     DirectionalLight,
     SmoothColor3D,
+    FaceOrientation,
 }
 
 pub struct MeshDrawData<'a> {
@@ -899,6 +958,7 @@ impl<END, EVD, EED, EFD> Drawable<MeshDrawData<'_>, MeshDrawError> for Mesh<END,
         match draw_data.use_shader {
             MeshUseShader::DirectionalLight => self.draw_directional_light_shader(draw_data),
             MeshUseShader::SmoothColor3D => self.draw_smooth_color_3d_shader(draw_data),
+            MeshUseShader::FaceOrientation => self.draw_face_orientation_shader(draw_data),
         }
     }
 

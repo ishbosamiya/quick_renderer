@@ -49,3 +49,12 @@ load_builtin_shader!(
     "../../shaders/infinite_grid.frag";
     INFINITE_GRID
 );
+
+load_builtin_shader!(
+    get_face_orientation_shader;
+    get_face_orientation_vert_code;
+    get_face_orientation_frag_code;
+    "../../shaders/face_orientation.vert";
+    "../../shaders/face_orientation.frag";
+    FACE_ORIENTATION
+);
