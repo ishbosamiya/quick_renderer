@@ -30,7 +30,19 @@ vec4 grid(vec3 frag_pos_3d, float scale) {
 
 float compute_depth(vec3 pos) {
 	vec4 clip_space_pos = frag_projection * frag_view * vec4(pos.xyz, 1.0);
-	return (clip_space_pos.z / clip_space_pos.w);
+	float clip_space_depth = (clip_space_pos.z / clip_space_pos.w);
+
+	// clip space depth is not the same as the frag depth, so compute it
+	// as below see reference
+	// https://github.com/martin-pr/possumwood/wiki/Infinite-ground-plane-using-GLSL-shaders
+	// and
+	// https://stackoverflow.com/questions/10264949/glsl-gl-fragcoord-z-calculation-and-setting-gl-fragdepth
+	float far = gl_DepthRange.far;
+	float near = gl_DepthRange.near;
+
+	float depth = (((far-near) * clip_space_depth) + near + far) / 2.0;
+
+	return depth;
 }
 
 float compute_linear_depth(vec3 pos, float scene_near, float scene_far) {
