@@ -189,8 +189,6 @@ f 8/5/6 4/13/6 2/14/6 6/7/6
                 infinite_grid_shader.set_mat4("projection\0", projection_matrix);
                 infinite_grid_shader.set_mat4("view\0", view_matrix);
                 infinite_grid_shader.set_mat4("model\0", &glm::identity());
-                infinite_grid_shader.set_float("scene_near\0", camera.get_near_plane() as f32);
-                infinite_grid_shader.set_float("scene_far\0", camera.get_far_plane() as f32);
             }
         }
 
