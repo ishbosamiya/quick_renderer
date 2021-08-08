@@ -261,6 +261,36 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
             .collect()
     }
 
+    pub fn is_vert_on_seam(&self, vert: &Vert<EVD>) -> bool {
+        vert.get_edges()
+            .iter()
+            .try_for_each(|edge_index| {
+                if self.is_edge_on_seam(self.get_edge(*edge_index).unwrap()) {
+                    Some(())
+                } else {
+                    None
+                }
+            })
+            .is_some()
+    }
+
+    pub fn is_vert_on_boundary(&self, vert: &Vert<EVD>) -> bool {
+        vert.get_edges()
+            .iter()
+            .try_for_each(|edge_index| {
+                if self.is_edge_on_boundary(self.get_edge(*edge_index).unwrap()) {
+                    Some(())
+                } else {
+                    None
+                }
+            })
+            .is_some()
+    }
+
+    pub fn is_vert_on_seam_or_boundary(&self, vert: &Vert<EVD>) -> bool {
+        self.is_vert_on_seam(vert) || self.is_vert_on_boundary(vert)
+    }
+
     pub fn is_edge_loose(&self, edge: &Edge<EED>) -> bool {
         edge.is_loose()
     }
