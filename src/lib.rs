@@ -2,6 +2,7 @@ pub mod camera;
 pub mod drawable;
 pub mod fps;
 pub mod gpu_immediate;
+pub mod infinite_grid;
 pub mod mesh;
 pub mod meshio;
 pub mod shader;

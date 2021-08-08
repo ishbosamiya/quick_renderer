@@ -10,6 +10,8 @@ use quick_renderer::fps::FPS;
 use quick_renderer::glfw;
 use quick_renderer::glm;
 use quick_renderer::gpu_immediate::GPUImmediate;
+use quick_renderer::infinite_grid::InfiniteGrid;
+use quick_renderer::infinite_grid::InfiniteGridDrawData;
 use quick_renderer::mesh;
 use quick_renderer::mesh::{MeshDrawData, MeshUseShader};
 use quick_renderer::shader;
@@ -75,9 +77,6 @@ fn main() {
         .as_ref()
         .unwrap();
 
-    let infinite_grid_shader = shader::builtins::get_infinite_grid_shader()
-        .as_ref()
-        .unwrap();
     let face_orientation_shader = shader::builtins::get_face_orientation_shader()
         .as_ref()
         .unwrap();
@@ -87,16 +86,13 @@ fn main() {
         directional_light_shader.get_uniforms(),
         directional_light_shader.get_attributes(),
     );
+
     println!(
         "smooth_color_3d: uniforms: {:?} attributes: {:?}",
         smooth_color_3d_shader.get_uniforms(),
         smooth_color_3d_shader.get_attributes(),
     );
-    println!(
-        "infinite_grid: uniforms: {:?} attributes: {:?}",
-        infinite_grid_shader.get_uniforms(),
-        infinite_grid_shader.get_attributes(),
-    );
+
     println!(
         "face_orientation: uniforms: {:?} attributes: {:?}",
         face_orientation_shader.get_uniforms(),
@@ -106,6 +102,8 @@ fn main() {
     let mut last_cursor = window.get_cursor_pos();
 
     let mut fps = FPS::default();
+
+    let infinite_grid = InfiniteGrid::default();
 
     while !window.should_close() {
         glfw.poll_events();
@@ -121,10 +119,11 @@ fn main() {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
 
+        let projection_matrix = &glm::convert(camera.get_projection_matrix(&window));
+        let view_matrix = &glm::convert(camera.get_view_matrix());
+
         // Shader stuff
         {
-            let projection_matrix = &glm::convert(camera.get_projection_matrix(&window));
-            let view_matrix = &glm::convert(camera.get_view_matrix());
             {
                 directional_light_shader.use_shader();
                 directional_light_shader.set_mat4("projection\0", projection_matrix);
@@ -150,13 +149,6 @@ fn main() {
             }
 
             {
-                infinite_grid_shader.use_shader();
-                infinite_grid_shader.set_mat4("projection\0", projection_matrix);
-                infinite_grid_shader.set_mat4("view\0", view_matrix);
-                infinite_grid_shader.set_mat4("model\0", &glm::identity());
-            }
-
-            {
                 face_orientation_shader.use_shader();
                 face_orientation_shader.set_mat4("projection\0", projection_matrix);
                 face_orientation_shader.set_mat4("view\0", view_matrix);
@@ -166,6 +158,10 @@ fn main() {
                 face_orientation_shader
                     .set_vec4("color_face_back\0", &glm::vec4(1.0, 0.0, 0.0, 1.0));
             }
+        }
+
+        unsafe {
+            gl::Disable(gl::BLEND);
         }
 
         directional_light_shader.use_shader();
@@ -204,44 +200,21 @@ fn main() {
         ))
         .unwrap();
 
+        // Keep meshes that have shaders that need alpha channel
+        // (blending) bellow this and handle it properly
         {
             unsafe {
                 gl::Enable(gl::BLEND);
                 gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
             }
-            infinite_grid_shader.use_shader();
 
-            let format = imm.get_cleared_vertex_format();
-            let pos_attr = format.add_attribute(
-                "in_pos\0".to_string(),
-                quick_renderer::gpu_immediate::GPUVertCompType::F32,
-                3,
-                quick_renderer::gpu_immediate::GPUVertFetchMode::Float,
-            );
-
-            imm.begin(
-                quick_renderer::gpu_immediate::GPUPrimType::Tris,
-                6,
-                infinite_grid_shader,
-            );
-
-            let plane_vert_pos = vec![
-                glm::vec3(1.0, 1.0, 0.0),
-                glm::vec3(-1.0, -1.0, 0.0),
-                glm::vec3(-1.0, 1.0, 0.0),
-                glm::vec3(-1.0, -1.0, 0.0),
-                glm::vec3(1.0, 1.0, 0.0),
-                glm::vec3(1.0, -1.0, 0.0),
-            ];
-
-            plane_vert_pos.iter().for_each(|pos| {
-                imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
-            });
-
-            imm.end();
-            unsafe {
-                gl::Disable(gl::BLEND);
-            }
+            infinite_grid
+                .draw(&mut InfiniteGridDrawData::new(
+                    projection_matrix,
+                    view_matrix,
+                    &mut imm,
+                ))
+                .unwrap();
         }
 
         // GUI starts
