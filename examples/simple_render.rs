@@ -12,7 +12,7 @@ use quick_renderer::glm;
 use quick_renderer::gpu_immediate::GPUImmediate;
 use quick_renderer::mesh::simple::Mesh;
 use quick_renderer::mesh::{MeshDrawData, MeshUseShader};
-use quick_renderer::meshreader::MeshReader;
+use quick_renderer::meshio::MeshIO;
 use quick_renderer::shader;
 
 fn main() {
@@ -97,7 +97,7 @@ f 3/11/5 7/6/5 5/8/5 1/12/5
 f 8/5/6 4/13/6 2/14/6 6/7/6
 "#;
     let cube_lines: Vec<&str> = cube.split('\n').collect();
-    let meshreader = MeshReader::from_lines(&cube_lines).unwrap();
+    let meshreader = MeshIO::from_lines(&cube_lines).unwrap();
     let mesh = Mesh::read(&meshreader).unwrap();
 
     let mut camera = WindowCamera::new(
