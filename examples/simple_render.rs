@@ -118,6 +118,10 @@ f 8/5/6 4/13/6 2/14/6 6/7/6
         .as_ref()
         .unwrap();
 
+    let infinite_grid_shader = shader::builtins::get_infinite_grid_shader()
+        .as_ref()
+        .unwrap();
+
     println!(
         "directional_light: uniforms: {:?} attributes: {:?}",
         directional_light_shader.get_uniforms(),
@@ -127,6 +131,11 @@ f 8/5/6 4/13/6 2/14/6 6/7/6
         "smooth_color_3d: uniforms: {:?} attributes: {:?}",
         smooth_color_3d_shader.get_uniforms(),
         smooth_color_3d_shader.get_attributes(),
+    );
+    println!(
+        "infinite_grid: uniforms: {:?} attributes: {:?}",
+        infinite_grid_shader.get_uniforms(),
+        infinite_grid_shader.get_attributes(),
     );
 
     let mut last_cursor = window.get_cursor_pos();
@@ -178,6 +187,16 @@ f 8/5/6 4/13/6 2/14/6 6/7/6
                 smooth_color_3d_shader.set_mat4("view\0", &glm::convert(camera.get_view_matrix()));
                 smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
             }
+
+            {
+                infinite_grid_shader.use_shader();
+                infinite_grid_shader.set_mat4(
+                    "projection\0",
+                    &glm::convert(camera.get_projection_matrix(&window)),
+                );
+                infinite_grid_shader.set_mat4("view\0", &glm::convert(camera.get_view_matrix()));
+                infinite_grid_shader.set_mat4("model\0", &glm::identity());
+            }
         }
 
         directional_light_shader.use_shader();
@@ -192,12 +211,50 @@ f 8/5/6 4/13/6 2/14/6 6/7/6
         ))
         .unwrap();
 
+        smooth_color_3d_shader.use_shader();
+        smooth_color_3d_shader.set_mat4(
+            "model\0",
+            &glm::translate(&glm::identity(), &glm::vec3(-2.1, 0.0, 0.0)),
+        );
         mesh.draw(&mut MeshDrawData::new(
             &mut imm,
             MeshUseShader::SmoothColor3D,
             Some(glm::vec4(1.0, 0.2, 0.5, 1.0)),
         ))
         .unwrap();
+
+        {
+            infinite_grid_shader.use_shader();
+
+            let format = imm.get_cleared_vertex_format();
+            let pos_attr = format.add_attribute(
+                "in_pos\0".to_string(),
+                quick_renderer::gpu_immediate::GPUVertCompType::F32,
+                3,
+                quick_renderer::gpu_immediate::GPUVertFetchMode::Float,
+            );
+
+            imm.begin(
+                quick_renderer::gpu_immediate::GPUPrimType::Tris,
+                6,
+                infinite_grid_shader,
+            );
+
+            let plane_vert_pos = vec![
+                glm::vec3(1.0, 1.0, 0.0),
+                glm::vec3(-1.0, -1.0, 0.0),
+                glm::vec3(-1.0, 1.0, 0.0),
+                glm::vec3(-1.0, -1.0, 0.0),
+                glm::vec3(1.0, 1.0, 0.0),
+                glm::vec3(1.0, -1.0, 0.0),
+            ];
+
+            plane_vert_pos.iter().for_each(|pos| {
+                imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+            });
+
+            imm.end();
+        }
 
         // GUI starts
         {

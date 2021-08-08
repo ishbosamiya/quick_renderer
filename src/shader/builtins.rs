@@ -40,3 +40,12 @@ load_builtin_shader!(
     "../../shaders/shader_3D_smooth_color.frag";
     SMOOTH_COLOR_3D
 );
+
+load_builtin_shader!(
+    get_infinite_grid_shader;
+    get_infinite_grid_vert_code;
+    get_infinite_grid_frag_code;
+    "../../shaders/infinite_grid.vert";
+    "../../shaders/infinite_grid.frag";
+    INFINITE_GRID
+);
