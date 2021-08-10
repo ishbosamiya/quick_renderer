@@ -648,11 +648,16 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
         // normal, etc.) need this model matrix applied. As of right
         // now, only assuming position and normal
         self.get_nodes_mut().iter_mut().for_each(|(_, node)| {
-            node.pos =
-                glm::vec4_to_vec3(&(model * glm::vec4(node.pos[0], node.pos[1], node.pos[2], 1.0)));
+            node.pos = apply_model_matrix_vec3(&node.pos, model);
             node.normal = node
                 .normal
-                .map(|normal| glm::vec4_to_vec3(&(model * glm::vec3_to_vec4(&normal))));
+                .map(|normal| apply_model_matrix_to_normal(&normal, model));
+        });
+
+        self.get_faces_mut().iter_mut().for_each(|(_, face)| {
+            face.normal = face
+                .normal
+                .map(|normal| apply_model_matrix_to_normal(&normal, model));
         });
     }
 
@@ -1224,6 +1229,22 @@ where
         return;
     }
     vec.push(val);
+}
+
+fn append_one(vec: &glm::DVec3) -> glm::DVec4 {
+    glm::vec4(vec[0], vec[1], vec[2], 1.0)
+}
+
+pub fn apply_model_matrix_vec2(v: &glm::DVec2, model: &glm::DMat4) -> glm::DVec3 {
+    glm::vec4_to_vec3(&(model * append_one(&glm::vec2_to_vec3(v))))
+}
+
+pub fn apply_model_matrix_vec3(v: &glm::DVec3, model: &glm::DMat4) -> glm::DVec3 {
+    glm::vec4_to_vec3(&(model * append_one(v)))
+}
+
+pub fn apply_model_matrix_to_normal(normal: &glm::DVec3, model: &glm::DMat4) -> glm::DVec3 {
+    apply_model_matrix_vec3(normal, &glm::inverse_transpose(*model))
 }
 
 #[cfg(test)]
