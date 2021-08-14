@@ -23,7 +23,8 @@ impl FPS {
             let current = std::time::Instant::now();
             let time_diff = (current - self.previous_time).as_secs_f64();
 
-            if expected_time - time_diff > 0.0 {
+            let wait_time = expected_time - time_diff;
+            if wait_time.is_finite() && wait_time > 0.0 {
                 std::thread::sleep(std::time::Duration::from_secs_f64(
                     expected_time - time_diff,
                 ));
