@@ -222,7 +222,7 @@ fn main() {
             egui.begin_frame(&window, &mut glfw);
             egui::Window::new("Hello world!").show(egui.get_egui_ctx(), |ui| {
                 ui.label("Hello World, Simple Render!");
-                ui.label(format!("fps: {:.2}", fps.update_and_get()));
+                ui.label(format!("fps: {:.2}", fps.update_and_get(Some(60.0))));
             });
             let (width, height) = window.get_framebuffer_size();
             let _output = egui.end_frame(glm::vec2(width as _, height as _));

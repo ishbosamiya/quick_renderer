@@ -15,8 +15,20 @@ impl FPS {
     }
 
     /// Update and return current fps
-    pub fn update_and_get(&mut self) -> f64 {
+    pub fn update_and_get(&mut self, limit_fps: Option<f64>) -> f64 {
         self.frames += 1;
+
+        if let Some(limit_fps) = limit_fps {
+            let expected_time = self.frames as f64 * 1.0 / limit_fps;
+            let current = std::time::Instant::now();
+            let time_diff = (current - self.previous_time).as_secs_f64();
+
+            if expected_time - time_diff > 0.0 {
+                std::thread::sleep(std::time::Duration::from_secs_f64(
+                    expected_time - time_diff,
+                ));
+            }
+        }
 
         let current = std::time::Instant::now();
         let time_diff = (current - self.previous_time).as_secs_f64();
