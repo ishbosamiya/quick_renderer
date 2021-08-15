@@ -1042,6 +1042,10 @@ impl<T> Face<T> {
         }
     }
 
+    pub fn get_self_index(&self) -> FaceIndex {
+        self.self_index
+    }
+
     pub fn get_verts(&self) -> &AdjacentVerts {
         &self.verts
     }
