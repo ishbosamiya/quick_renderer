@@ -1156,6 +1156,10 @@ impl<T> Vert<T> {
         }
     }
 
+    pub fn get_self_index(&self) -> VertIndex {
+        self.self_index
+    }
+
     pub fn get_node(&self) -> &Option<NodeIndex> {
         &self.node
     }
