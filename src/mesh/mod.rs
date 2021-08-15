@@ -1164,6 +1164,13 @@ impl<T> Vert<T> {
         &self.edges
     }
 
+    /// A vert is loose if it has no edges associated with it. Any
+    /// vert should always have a node associated with it, so a node
+    /// check is not done
+    pub fn is_loose(&self) -> bool {
+        self.edges.is_empty()
+    }
+
     /// # Safety
     ///
     /// Use this only if you know what you are doing. It is
