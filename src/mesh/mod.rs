@@ -1206,6 +1206,10 @@ impl<T> Node<T> {
         }
     }
 
+    pub fn get_self_index(&self) -> NodeIndex {
+        self.self_index
+    }
+
     pub fn set_normal(&mut self, normal: glm::DVec3) {
         self.normal = Some(normal);
     }
