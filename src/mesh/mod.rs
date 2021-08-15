@@ -1218,6 +1218,12 @@ impl<T> Node<T> {
         &self.verts
     }
 
+    /// A node is said to be loose if it has no verts that it refers
+    /// to.
+    pub fn is_loose(&self) -> bool {
+        self.verts.is_empty()
+    }
+
     /// # Safety
     ///
     /// Use this only if you know what you are doing. It is
