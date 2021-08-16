@@ -1,4 +1,5 @@
 use lazy_static::lazy_static;
+use paste::paste;
 
 use super::{Shader, ShaderError};
 
@@ -23,38 +24,33 @@ macro_rules! load_builtin_shader {
     };
 }
 
-load_builtin_shader!(
-    get_directional_light_shader;
-    get_directional_light_vert_code;
-    get_directional_light_frag_code;
+macro_rules! load_builtin_shader_easy {
+    ( $name:ident ; $vert_location:tt ; $frag_location:tt ) => {
+        paste! {
+            load_builtin_shader!([<get_ $name _shader>]; [<get_ $name _vert_code>]; [<get_ $name _frag_code>]; $vert_location; $frag_location; [<$name:upper>]);
+        }
+    }
+}
+
+load_builtin_shader_easy!(
+    directional_light;
     "../../shaders/directional_light.vert";
-    "../../shaders/directional_light.frag";
-    DIRECTIONAL_LIGHT
+    "../../shaders/directional_light.frag"
 );
 
-load_builtin_shader!(
-    get_smooth_color_3d_shader;
-    get_smooth_color_3d_vert_code;
-    get_smooth_color_3d_frag_code;
+load_builtin_shader_easy!(
+    smooth_color_3d;
     "../../shaders/shader_3D_smooth_color.vert";
-    "../../shaders/shader_3D_smooth_color.frag";
-    SMOOTH_COLOR_3D
-);
+    "../../shaders/shader_3D_smooth_color.frag");
 
-load_builtin_shader!(
-    get_infinite_grid_shader;
-    get_infinite_grid_vert_code;
-    get_infinite_grid_frag_code;
+load_builtin_shader_easy!(
+    infinite_grid;
     "../../shaders/infinite_grid.vert";
-    "../../shaders/infinite_grid.frag";
-    INFINITE_GRID
+    "../../shaders/infinite_grid.frag"
 );
 
-load_builtin_shader!(
-    get_face_orientation_shader;
-    get_face_orientation_vert_code;
-    get_face_orientation_frag_code;
+load_builtin_shader_easy!(
+    face_orientation;
     "../../shaders/face_orientation.vert";
-    "../../shaders/face_orientation.frag";
-    FACE_ORIENTATION
+    "../../shaders/face_orientation.frag"
 );
