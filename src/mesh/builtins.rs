@@ -1,4 +1,5 @@
 use lazy_static::lazy_static;
+use paste::paste;
 
 use crate::meshio::MeshIO;
 
@@ -24,18 +25,26 @@ macro_rules! load_builtin_mesh {
     };
 }
 
-load_builtin_mesh!(cube_subd_00; get_cube_subd_00_obj_str; get_cube_subd_00; CUBE_SUBD_00; "../../models/cube_subd_00.obj");
-load_builtin_mesh!(cube_subd_00_triangulated; get_cube_subd_00_triangulated_obj_str; get_cube_subd_00_triangulated; CUBE_SUBD_00_TRIANGULATED; "../../models/cube_subd_00_triangulated.obj");
+macro_rules! load_builtin_mesh_easy {
+    ( $name:ident ; $location:tt ) => {
+        paste! {
+            load_builtin_mesh!($name; [<get_ $name _obj_str>]; [<get_ $name>]; [<$name:upper>]; $location);
+        }
+    }
+}
 
-load_builtin_mesh!(ico_sphere_subd_00; get_ico_sphere_subd_00_obj_str; get_ico_sphere_subd_00; ICO_SPHERE_SUBD_00; "../../models/ico_sphere_subd_00.obj");
-load_builtin_mesh!(ico_sphere_subd_01; get_ico_sphere_subd_01_obj_str; get_ico_sphere_subd_01; ICO_SPHERE_SUBD_01; "../../models/ico_sphere_subd_01.obj");
-load_builtin_mesh!(ico_sphere_subd_02; get_ico_sphere_subd_02_obj_str; get_ico_sphere_subd_02; ICO_SPHERE_SUBD_02; "../../models/ico_sphere_subd_02.obj");
+load_builtin_mesh_easy!(cube_subd_00; "../../models/cube_subd_00.obj");
+load_builtin_mesh_easy!(cube_subd_00_triangulated; "../../models/cube_subd_00_triangulated.obj");
 
-load_builtin_mesh!(monkey_subd_00; get_monkey_subd_00_obj_str; get_monkey_subd_00; MONKEY_SUBD_00; "../../models/monkey_subd_00.obj");
-load_builtin_mesh!(monkey_subd_00_triangulated; get_monkey_subd_00_triangulated_obj_str; get_monkey_subd_00_triangulated; MONKEY_SUBD_00_TRIANGULATED; "../../models/monkey_subd_00_triangulated.obj");
+load_builtin_mesh_easy!(ico_sphere_subd_00; "../../models/ico_sphere_subd_00.obj");
+load_builtin_mesh_easy!(ico_sphere_subd_01; "../../models/ico_sphere_subd_01.obj");
+load_builtin_mesh_easy!(ico_sphere_subd_02; "../../models/ico_sphere_subd_02.obj");
 
-load_builtin_mesh!(monkey_subd_01; get_monkey_subd_01_obj_str; get_monkey_subd_01; MONKEY_SUBD_01; "../../models/monkey_subd_01.obj");
-load_builtin_mesh!(monkey_subd_01_triangulated; get_monkey_subd_01_triangulated_obj_str; get_monkey_subd_01_triangulated; MONKEY_SUBD_01_TRIANGULATED; "../../models/monkey_subd_01_triangulated.obj");
+load_builtin_mesh_easy!(monkey_subd_00; "../../models/monkey_subd_00.obj");
+load_builtin_mesh_easy!(monkey_subd_00_triangulated; "../../models/monkey_subd_00_triangulated.obj");
 
-load_builtin_mesh!(plane_subd_00; get_plane_subd_00_obj_str; get_plane_subd_00; PLANE_SUBD_00; "../../models/plane_subd_00.obj");
-load_builtin_mesh!(plane_subd_00_triangulated; get_plane_subd_00_triangulated_obj_str; get_plane_subd_00_triangulated; PLANE_SUBD_00_TRIANGULATED; "../../models/plane_subd_00_triangulated.obj");
+load_builtin_mesh_easy!(monkey_subd_01; "../../models/monkey_subd_01.obj");
+load_builtin_mesh_easy!(monkey_subd_01_triangulated; "../../models/monkey_subd_01_triangulated.obj");
+
+load_builtin_mesh_easy!(plane_subd_00; "../../models/plane_subd_00.obj");
+load_builtin_mesh_easy!(plane_subd_00_triangulated; "../../models/plane_subd_00_triangulated.obj");
