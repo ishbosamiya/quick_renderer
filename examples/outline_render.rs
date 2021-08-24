@@ -31,6 +31,35 @@ pub struct Texture {
 }
 
 impl Texture {
+    pub fn new_empty(width: usize, height: usize) -> Self {
+        let gl_tex = Self::gen_gl_texture();
+        let pixels = Vec::new();
+        let res = Self {
+            width,
+            height,
+            pixels,
+            gl_tex,
+        };
+
+        unsafe {
+            gl::BindTexture(gl::TEXTURE_2D, gl_tex);
+
+            gl::TexImage2D(
+                gl::TEXTURE_2D,
+                0,
+                gl::RGBA.try_into().unwrap(),
+                res.width.try_into().unwrap(),
+                res.height.try_into().unwrap(),
+                0,
+                gl::RGBA,
+                gl::UNSIGNED_BYTE,
+                std::ptr::null(),
+            )
+        }
+
+        res
+    }
+
     pub fn from_image(tex: &image::RgbaImage) -> Self {
         let gl_tex = Self::gen_gl_texture();
         let res = Self {
@@ -147,6 +176,130 @@ impl Texture {
 
         gl_tex
     }
+
+    pub fn get_gl_tex(&self) -> GLuint {
+        self.gl_tex
+    }
+
+    pub fn get_width(&self) -> usize {
+        self.width
+    }
+
+    pub fn get_height(&self) -> usize {
+        self.height
+    }
+}
+
+impl Drop for Texture {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteTextures(1, &self.gl_tex);
+        }
+    }
+}
+
+pub struct RenderBuffer {
+    gl_renderbuffer: GLuint,
+}
+
+impl RenderBuffer {
+    pub fn new(width: usize, height: usize) -> Self {
+        let mut gl_renderbuffer = 0;
+        unsafe {
+            gl::GenRenderbuffers(1, &mut gl_renderbuffer);
+            gl::BindRenderbuffer(gl::RENDERBUFFER, gl_renderbuffer);
+            gl::RenderbufferStorage(
+                gl::RENDERBUFFER,
+                gl::DEPTH24_STENCIL8,
+                width.try_into().unwrap(),
+                height.try_into().unwrap(),
+            );
+            gl::BindRenderbuffer(gl::RENDERBUFFER, 0);
+        }
+
+        Self { gl_renderbuffer }
+    }
+
+    pub fn get_gl_renderbuffer(&self) -> GLuint {
+        self.gl_renderbuffer
+    }
+}
+
+impl Drop for RenderBuffer {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteRenderbuffers(1, &self.gl_renderbuffer);
+        }
+    }
+}
+
+pub struct FrameBuffer {
+    gl_framebuffer: GLuint,
+}
+
+impl FrameBuffer {
+    pub fn activiate_default() {
+        unsafe {
+            gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
+        }
+    }
+
+    pub fn new() -> Self {
+        let mut gl_framebuffer = 0;
+        unsafe {
+            gl::GenFramebuffers(1, &mut gl_framebuffer);
+        }
+
+        Self { gl_framebuffer }
+    }
+
+    pub fn activate(&self, texture: &Texture, renderbuffer: &RenderBuffer) {
+        unsafe {
+            gl::BindFramebuffer(gl::FRAMEBUFFER, self.gl_framebuffer);
+        }
+
+        unsafe {
+            gl::FramebufferTexture2D(
+                gl::FRAMEBUFFER,
+                gl::COLOR_ATTACHMENT0,
+                gl::TEXTURE_2D,
+                texture.get_gl_tex(),
+                0,
+            );
+        }
+
+        // renderbuffer so that depth testing and such can work
+        unsafe {
+            gl::FramebufferRenderbuffer(
+                gl::FRAMEBUFFER,
+                gl::DEPTH_STENCIL_ATTACHMENT,
+                gl::RENDERBUFFER,
+                renderbuffer.get_gl_renderbuffer(),
+            );
+        }
+
+        let status;
+        unsafe {
+            status = gl::CheckFramebufferStatus(gl::FRAMEBUFFER);
+        }
+        if status != gl::FRAMEBUFFER_COMPLETE {
+            eprintln!("error: framebuffer not complete!");
+        }
+    }
+}
+
+impl Default for FrameBuffer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Drop for FrameBuffer {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteFramebuffers(1, &self.gl_framebuffer);
+        }
+    }
 }
 
 fn main() {
@@ -214,6 +367,10 @@ fn main() {
         .as_ref()
         .unwrap();
 
+    let flat_texture_shader = shader::builtins::get_flat_texture_shader()
+        .as_ref()
+        .unwrap();
+
     let test_shader =
         shader::Shader::from_strings(include_str!("test.vert"), include_str!("test.frag")).unwrap();
 
@@ -236,6 +393,12 @@ fn main() {
     );
 
     println!(
+        "flat_texture: uniforms: {:?} attributes: {:?}",
+        flat_texture_shader.get_uniforms(),
+        flat_texture_shader.get_attributes(),
+    );
+
+    println!(
         "test: uniforms: {:?} attributes: {:?}",
         test_shader.get_uniforms(),
         test_shader.get_attributes(),
@@ -247,9 +410,11 @@ fn main() {
 
     let infinite_grid = InfiniteGrid::default();
 
-    let mut image = Texture::from_image(&image::imageops::flip_vertical(
+    let mut loaded_image = Texture::from_image(&image::imageops::flip_vertical(
         &image::open("test.png").unwrap().into_rgba8(),
     ));
+
+    let framebuffer = FrameBuffer::new();
 
     while !window.should_close() {
         glfw.poll_events();
@@ -260,10 +425,9 @@ fn main() {
             handle_window_event(&event, &mut window, &mut camera, &mut last_cursor);
         });
 
-        unsafe {
-            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-        }
+        let (width, height) = window.get_size();
+        let (width, height): (usize, usize) =
+            (width.try_into().unwrap(), height.try_into().unwrap());
 
         let projection_matrix = &glm::convert(camera.get_projection_matrix(&window));
         let view_matrix = &glm::convert(camera.get_view_matrix());
@@ -310,10 +474,24 @@ fn main() {
                 test_shader.set_mat4("projection\0", projection_matrix);
                 test_shader.set_mat4("view\0", view_matrix);
             }
+
+            {
+                flat_texture_shader.use_shader();
+                flat_texture_shader.set_mat4("projection\0", projection_matrix);
+                flat_texture_shader.set_mat4("view\0", view_matrix);
+                flat_texture_shader.set_mat4("model\0", &glm::identity());
+            }
         }
 
         unsafe {
             gl::Disable(gl::BLEND);
+        }
+
+        FrameBuffer::activiate_default();
+
+        unsafe {
+            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
 
         directional_light_shader.use_shader();
@@ -327,6 +505,18 @@ fn main() {
 
         // Jump flood algorithm
         {
+            let mut image_rendered = Texture::new_empty(width, height);
+            let renderbuffer = RenderBuffer::new(width, height);
+            framebuffer.activate(&image_rendered, &renderbuffer);
+            unsafe {
+                gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+                gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+            }
+
+            test_shader.use_shader();
+            test_shader.set_int("image\0", 31);
+            loaded_image.activate(31);
+
             let plane_vert_positions = vec![
                 (glm::vec3(1.0, 1.0, 0.0), glm::vec2(1.0, 1.0)),
                 (glm::vec3(-1.0, -1.0, 0.0), glm::vec2(0.0, 0.0)),
@@ -335,10 +525,6 @@ fn main() {
                 (glm::vec3(1.0, 1.0, 0.0), glm::vec2(1.0, 1.0)),
                 (glm::vec3(1.0, -1.0, 0.0), glm::vec2(1.0, 0.0)),
             ];
-
-            test_shader.use_shader();
-            test_shader.set_int("image\0", 31);
-            image.activate(31);
 
             let format = imm.get_cleared_vertex_format();
             let pos_attr = format.add_attribute(
@@ -366,6 +552,54 @@ fn main() {
             });
 
             imm.end();
+
+            FrameBuffer::activiate_default();
+
+            {
+                flat_texture_shader.use_shader();
+                flat_texture_shader.set_int("image\0", 31);
+                flat_texture_shader.set_mat4(
+                    "model\0",
+                    &glm::translate(&glm::identity(), &glm::vec3(2.0, 1.0, 0.0)),
+                );
+                image_rendered.activate(31);
+
+                let plane_vert_positions = vec![
+                    (glm::vec3(1.0, 1.0, 0.0), glm::vec2(1.0, 1.0)),
+                    (glm::vec3(-1.0, -1.0, 0.0), glm::vec2(0.0, 0.0)),
+                    (glm::vec3(-1.0, 1.0, 0.0), glm::vec2(0.0, 1.0)),
+                    (glm::vec3(-1.0, -1.0, 0.0), glm::vec2(0.0, 0.0)),
+                    (glm::vec3(1.0, 1.0, 0.0), glm::vec2(1.0, 1.0)),
+                    (glm::vec3(1.0, -1.0, 0.0), glm::vec2(1.0, 0.0)),
+                ];
+
+                let format = imm.get_cleared_vertex_format();
+                let pos_attr = format.add_attribute(
+                    "in_pos\0".to_string(),
+                    quick_renderer::gpu_immediate::GPUVertCompType::F32,
+                    3,
+                    quick_renderer::gpu_immediate::GPUVertFetchMode::Float,
+                );
+                let uv_attr = format.add_attribute(
+                    "in_uv\0".to_string(),
+                    quick_renderer::gpu_immediate::GPUVertCompType::F32,
+                    2,
+                    quick_renderer::gpu_immediate::GPUVertFetchMode::Float,
+                );
+
+                imm.begin(
+                    quick_renderer::gpu_immediate::GPUPrimType::Tris,
+                    6,
+                    flat_texture_shader,
+                );
+
+                plane_vert_positions.iter().for_each(|(pos, uv)| {
+                    imm.attr_2f(uv_attr, uv[0], uv[1]);
+                    imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+                });
+
+                imm.end();
+            }
         }
 
         // Keep meshes that have shaders that need alpha channel
