@@ -54,3 +54,9 @@ load_builtin_shader_easy!(
     "../../shaders/face_orientation.vert";
     "../../shaders/face_orientation.frag"
 );
+
+load_builtin_shader_easy!(
+    flat_texture;
+    "../../shaders/flat_texture.vert";
+    "../../shaders/flat_texture.frag"
+);
