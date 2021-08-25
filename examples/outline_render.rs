@@ -167,11 +167,14 @@ fn main() {
             handle_window_event(&event, &mut window, &mut camera, &mut last_cursor);
         });
 
-        let (width, height) = window.get_size();
-        let (width, height): (usize, usize) =
-            (width.try_into().unwrap(), height.try_into().unwrap());
+        let (window_width, window_height) = window.get_size();
+        let (window_width, window_height): (usize, usize) = (
+            window_width.try_into().unwrap(),
+            window_height.try_into().unwrap(),
+        );
 
-        let projection_matrix = &glm::convert(camera.get_projection_matrix(&window));
+        let projection_matrix =
+            &glm::convert(camera.get_projection_matrix(window_width, window_height));
         let view_matrix = &glm::convert(camera.get_view_matrix());
 
         // Shader stuff
@@ -307,8 +310,7 @@ fn main() {
                 );
                 ui.checkbox(&mut jfa_convert_to_distance, "JFA Convert To Distance");
             });
-            let (width, height) = window.get_framebuffer_size();
-            let _output = egui.end_frame(glm::vec2(width as _, height as _));
+            let _output = egui.end_frame(glm::vec2(window_width as _, window_height as _));
         }
         // GUI ends
 
@@ -338,6 +340,12 @@ fn handle_window_event(
         _ => {}
     };
 
+    let (window_width, window_height) = window.get_size();
+    let (window_width, window_height): (usize, usize) = (
+        window_width.try_into().unwrap(),
+        window_height.try_into().unwrap(),
+    );
+
     if window.get_mouse_button(glfw::MouseButtonMiddle) == glfw::Action::Press {
         if window.get_key(glfw::Key::LeftShift) == glfw::Action::Press {
             camera.pan(
@@ -346,10 +354,11 @@ fn handle_window_event(
                 cursor.0,
                 cursor.1,
                 1.0,
-                window,
+                window_width,
+                window_height,
             );
         } else if window.get_key(glfw::Key::LeftControl) == glfw::Action::Press {
-            camera.move_forward(last_cursor.1, cursor.1, window);
+            camera.move_forward(last_cursor.1, cursor.1, window_height);
         } else {
             camera.rotate_wrt_camera_origin(
                 last_cursor.0,

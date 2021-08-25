@@ -1,4 +1,3 @@
-use crate::glfw;
 use crate::glm;
 
 pub struct WindowCamera {
@@ -74,8 +73,7 @@ impl WindowCamera {
         glm::look_at(&self.position, &(self.position + self.front), &self.up)
     }
 
-    pub fn get_projection_matrix(&self, window: &glfw::Window) -> glm::DMat4 {
-        let (width, height) = window.get_size();
+    pub fn get_projection_matrix(&self, width: usize, height: usize) -> glm::DMat4 {
         glm::perspective(
             width as f64 / height as f64,
             self.zoom.to_radians(),
@@ -84,8 +82,7 @@ impl WindowCamera {
         )
     }
 
-    pub fn get_ortho_matrix(&self, window: &glfw::Window) -> glm::DMat4 {
-        let (width, height) = window.get_size();
+    pub fn get_ortho_matrix(&self, width: usize, height: usize) -> glm::DMat4 {
         glm::ortho(
             0.0,
             width as f64,
@@ -103,14 +100,14 @@ impl WindowCamera {
         mouse_end_x: f64,
         mouse_end_y: f64,
         len: f64,
-        window: &glfw::Window,
+        width: usize,
+        height: usize,
     ) {
         if (mouse_start_x - mouse_end_x).abs() < f64::EPSILON
             && (mouse_start_y - mouse_end_y).abs() < f64::EPSILON
         {
             return;
         }
-        let (width, height) = window.get_size();
         let clip_x = mouse_start_x * 2.0 / width as f64 - 1.0;
         let clip_y = 1.0 - mouse_start_y * 2.0 / height as f64;
 
@@ -118,7 +115,7 @@ impl WindowCamera {
         let clip_end_y = 1.0 - mouse_end_y * 2.0 / height as f64;
 
         let inverse_mvp =
-            glm::inverse(&(self.get_projection_matrix(window) * self.get_view_matrix()));
+            glm::inverse(&(self.get_projection_matrix(width, height) * self.get_view_matrix()));
         let out_vector = inverse_mvp * glm::vec4(clip_x, clip_y, 0.0, 1.0);
         let world_pos = glm::vec3(
             out_vector.x / out_vector.w,
@@ -166,8 +163,7 @@ impl WindowCamera {
         self.update_camera_vectors();
     }
 
-    pub fn move_forward(&mut self, mouse_start_y: f64, mouse_end_y: f64, window: &glfw::Window) {
-        let (_, height) = window.get_size();
+    pub fn move_forward(&mut self, mouse_start_y: f64, mouse_end_y: f64, height: usize) {
         let clip_y = 1.0 - mouse_start_y * 2.0 / height as f64;
         let clip_end_y = 1.0 - mouse_end_y * 2.0 / height as f64;
 
@@ -194,15 +190,15 @@ impl WindowCamera {
         &self,
         mouse_x: f64,
         mouse_y: f64,
-        window: &glfw::Window,
+        width: usize,
+        height: usize,
     ) -> glm::DVec3 {
-        let (width, height) = window.get_size();
         let x = (2.0 * mouse_x) / width as f64 - 1.0;
         let y = 1.0 - (2.0 * mouse_y) / height as f64;
 
         let ray_clip = glm::vec4(x, y, -1.0, 1.0);
 
-        let ray_eye = glm::inverse(&self.get_projection_matrix(window)) * ray_clip;
+        let ray_eye = glm::inverse(&self.get_projection_matrix(width, height)) * ray_clip;
         let ray_eye = glm::vec4(ray_eye[0], ray_eye[1], -1.0, 0.0);
 
         let ray_wor = glm::inverse(&self.get_view_matrix()) * ray_eye;
