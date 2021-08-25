@@ -425,6 +425,12 @@ fn main() {
         shader::Shader::from_strings(include_str!("jfa_step.vert"), include_str!("jfa_step.frag"))
             .unwrap();
 
+    let jfa_convert_to_distance_shader = shader::Shader::from_strings(
+        include_str!("jfa_convert_to_distance.vert"),
+        include_str!("jfa_convert_to_distance.frag"),
+    )
+    .unwrap();
+
     println!(
         "directional_light: uniforms: {:?} attributes: {:?}",
         directional_light_shader.get_uniforms(),
@@ -467,6 +473,12 @@ fn main() {
         jfa_step_shader.get_attributes(),
     );
 
+    println!(
+        "jfa_convert_to_distance: uniforms: {:?} attributes: {:?}",
+        jfa_convert_to_distance_shader.get_uniforms(),
+        jfa_convert_to_distance_shader.get_attributes(),
+    );
+
     let mut last_cursor = window.get_cursor_pos();
 
     let mut fps = FPS::default();
@@ -480,6 +492,7 @@ fn main() {
     let framebuffer = FrameBuffer::new();
 
     let mut jfa_num_steps = 0;
+    let mut jfa_convert_to_distance = false;
 
     while !window.should_close() {
         glfw.poll_events();
@@ -546,6 +559,10 @@ fn main() {
 
             {
                 jfa_step_shader.use_shader();
+            }
+
+            {
+                jfa_convert_to_distance_shader.use_shader();
             }
 
             {
@@ -637,12 +654,32 @@ fn main() {
 
             // Render out the final texture on a plane in 3D space
             {
-                let final_texture;
+                let final_jfa_texture;
+                let other_texture;
                 if jfa_num_steps % 2 == 0 {
-                    final_texture = &mut jfa_texture_2;
+                    final_jfa_texture = &mut jfa_texture_2;
+                    other_texture = &mut jfa_texture_1;
                 } else {
-                    final_texture = &mut jfa_texture_1;
+                    final_jfa_texture = &mut jfa_texture_1;
+                    other_texture = &mut jfa_texture_2;
                 }
+
+                let final_texture;
+                if jfa_convert_to_distance {
+                    framebuffer.activate(other_texture, &renderbuffer);
+
+                    jfa_convert_to_distance_shader.use_shader();
+                    jfa_convert_to_distance_shader.set_int("image\0", 31);
+                    final_jfa_texture.activate(31);
+
+                    render_quad(&mut imm, &jfa_convert_to_distance_shader);
+
+                    final_texture = other_texture;
+                    FrameBuffer::activiate_default();
+                } else {
+                    final_texture = final_jfa_texture;
+                }
+
                 flat_texture_shader.use_shader();
                 flat_texture_shader.set_int("image\0", 31);
                 flat_texture_shader.set_mat4(
@@ -650,7 +687,6 @@ fn main() {
                     &glm::translate(&glm::identity(), &glm::vec3(2.0, 1.0, 0.0)),
                 );
                 final_texture.activate(31);
-
                 render_quad(&mut imm, flat_texture_shader);
             }
         }
@@ -679,6 +715,7 @@ fn main() {
                 ui.label("Hello World, Outline Render!");
                 ui.label(format!("fps: {:.2}", fps.update_and_get(Some(60.0))));
                 ui.add(egui::Slider::new(&mut jfa_num_steps, 0..=30).text("JFA Num Steps"));
+                ui.checkbox(&mut jfa_convert_to_distance, "JFA Convert To Distance");
             });
             let (width, height) = window.get_framebuffer_size();
             let _output = egui.end_frame(glm::vec2(width as _, height as _));
