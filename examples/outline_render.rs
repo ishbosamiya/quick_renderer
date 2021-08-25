@@ -714,7 +714,11 @@ fn main() {
             egui::Window::new("Hello world!").show(egui.get_egui_ctx(), |ui| {
                 ui.label("Hello World, Outline Render!");
                 ui.label(format!("fps: {:.2}", fps.update_and_get(Some(60.0))));
-                ui.add(egui::Slider::new(&mut jfa_num_steps, 0..=30).text("JFA Num Steps"));
+                ui.add(
+                    egui::Slider::new(&mut jfa_num_steps, 0..=30)
+                        .text("JFA Num Steps")
+                        .clamp_to_range(true),
+                );
                 ui.checkbox(&mut jfa_convert_to_distance, "JFA Convert To Distance");
             });
             let (width, height) = window.get_framebuffer_size();
