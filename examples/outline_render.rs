@@ -16,6 +16,7 @@ use quick_renderer::gpu_immediate::GPUImmediate;
 use quick_renderer::gpu_utils;
 use quick_renderer::infinite_grid::InfiniteGrid;
 use quick_renderer::infinite_grid::InfiniteGridDrawData;
+use quick_renderer::jfa;
 use quick_renderer::mesh;
 use quick_renderer::mesh::{MeshDrawData, MeshUseShader};
 use quick_renderer::renderbuffer::RenderBuffer;
@@ -255,81 +256,28 @@ fn main() {
 
         // Jump flood algorithm
         {
-            unsafe {
-                gl::Disable(gl::DEPTH_TEST);
-            }
-            let mut jfa_texture_1 = TextureRGBAFloat::new_empty(width, height);
-            let mut jfa_texture_2 = TextureRGBAFloat::new_empty(width, height);
-            let renderbuffer = RenderBuffer::new(width, height);
-            // Initialization
-            {
-                framebuffer.activate(&jfa_texture_1, &renderbuffer);
-                unsafe {
-                    gl::ClearColor(0.0, 0.0, 0.0, 1.0);
-                    gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-                }
-
-                jfa_initialization_shader.use_shader();
-                jfa_initialization_shader.set_int("image\0", 31);
-                loaded_image.activate(31);
-
-                gpu_utils::render_quad(&mut imm, jfa_initialization_shader);
-            }
-
-            // JFA steps
-            {
-                (0..jfa_num_steps).for_each(|step| {
-                    let render_to;
-                    let render_from;
-                    if step % 2 == 0 {
-                        render_from = &mut jfa_texture_1;
-                        render_to = &jfa_texture_2;
-                    } else {
-                        render_from = &mut jfa_texture_2;
-                        render_to = &jfa_texture_1;
-                    }
-
-                    framebuffer.activate(render_to, &renderbuffer);
-                    unsafe {
-                        gl::ClearColor(0.0, 0.0, 0.0, 1.0);
-                        gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-                    }
-
-                    let step_size = 2.0_f32.powi(jfa_num_steps - 1 - step);
-
-                    jfa_step_shader.use_shader();
-                    jfa_step_shader.set_int("image\0", 31);
-                    jfa_step_shader.set_float("step_size\0", step_size);
-                    render_from.activate(31);
-
-                    gpu_utils::render_quad(&mut imm, jfa_step_shader);
-                });
-            }
-
-            unsafe {
-                gl::Enable(gl::DEPTH_TEST);
-            }
-
-            FrameBuffer::activiate_default();
-
+            let mut final_jfa_texture = jfa::jfa(&mut loaded_image, jfa_num_steps, &mut imm);
             // Render out the final texture on a plane in 3D space
             {
-                let final_jfa_texture;
-                let other_texture;
-                if jfa_num_steps % 2 == 0 {
-                    final_jfa_texture = &mut jfa_texture_2;
-                    other_texture = &mut jfa_texture_1;
-                } else {
-                    final_jfa_texture = &mut jfa_texture_1;
-                    other_texture = &mut jfa_texture_2;
-                }
-
-                let final_texture;
+                let other_texture = TextureRGBAFloat::new_empty(
+                    final_jfa_texture.get_width(),
+                    final_jfa_texture.get_height(),
+                );
+                let renderbuffer = RenderBuffer::new(
+                    final_jfa_texture.get_width(),
+                    final_jfa_texture.get_height(),
+                );
+                let mut final_texture;
                 if jfa_convert_to_distance {
                     unsafe {
                         gl::Disable(gl::DEPTH_TEST);
                     }
-                    framebuffer.activate(other_texture, &renderbuffer);
+                    let mut prev_viewport_params = [0, 0, 0, 0];
+                    unsafe {
+                        gl::GetIntegerv(gl::VIEWPORT, prev_viewport_params.as_mut_ptr());
+                        gl::Viewport(0, 0, width.try_into().unwrap(), height.try_into().unwrap());
+                    }
+                    framebuffer.activate(&other_texture, &renderbuffer);
 
                     jfa_convert_to_distance_shader.use_shader();
                     jfa_convert_to_distance_shader.set_int("image\0", 31);
@@ -341,6 +289,12 @@ fn main() {
                     FrameBuffer::activiate_default();
                     unsafe {
                         gl::Enable(gl::DEPTH_TEST);
+                        gl::Viewport(
+                            prev_viewport_params[0],
+                            prev_viewport_params[1],
+                            prev_viewport_params[2],
+                            prev_viewport_params[3],
+                        );
                     }
                 } else {
                     final_texture = final_jfa_texture;

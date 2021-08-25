@@ -5,6 +5,7 @@ pub mod framebuffer;
 pub mod gpu_immediate;
 pub mod gpu_utils;
 pub mod infinite_grid;
+pub mod jfa;
 pub mod mesh;
 pub mod meshio;
 pub mod renderbuffer;
