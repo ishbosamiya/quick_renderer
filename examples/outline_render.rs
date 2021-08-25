@@ -389,12 +389,12 @@ fn main() {
                 flat_texture_shader.set_int("image\0", 31);
                 flat_texture_shader.set_mat4(
                     "model\0",
-                    &glm::translate(
-                        &glm::scale(
+                    &glm::scale(
+                        &glm::translate(
                             &glm::identity(),
-                            &glm::vec3(width as f32 / height as f32, 1.0, 1.0),
+                            &glm::vec3(width as f32 / height as f32 + 1.0, 1.0, 0.0),
                         ),
-                        &glm::vec3(2.0, 1.0, 0.0),
+                        &glm::vec3(width as f32 / height as f32, 1.0, 1.0),
                     ),
                 );
                 final_texture.activate(31);
