@@ -374,6 +374,12 @@ fn main() {
     let test_shader =
         shader::Shader::from_strings(include_str!("test.vert"), include_str!("test.frag")).unwrap();
 
+    let jfa_initialization_shader = shader::Shader::from_strings(
+        include_str!("jfa_initialization.vert"),
+        include_str!("jfa_initialization.frag"),
+    )
+    .unwrap();
+
     println!(
         "directional_light: uniforms: {:?} attributes: {:?}",
         directional_light_shader.get_uniforms(),
@@ -402,6 +408,12 @@ fn main() {
         "test: uniforms: {:?} attributes: {:?}",
         test_shader.get_uniforms(),
         test_shader.get_attributes(),
+    );
+
+    println!(
+        "jfa_initialization: uniforms: {:?} attributes: {:?}",
+        jfa_initialization_shader.get_uniforms(),
+        jfa_initialization_shader.get_attributes(),
     );
 
     let mut last_cursor = window.get_cursor_pos();
@@ -476,6 +488,10 @@ fn main() {
             }
 
             {
+                jfa_initialization_shader.use_shader();
+            }
+
+            {
                 flat_texture_shader.use_shader();
                 flat_texture_shader.set_mat4("projection\0", projection_matrix);
                 flat_texture_shader.set_mat4("view\0", view_matrix);
@@ -513,8 +529,8 @@ fn main() {
                 gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
             }
 
-            test_shader.use_shader();
-            test_shader.set_int("image\0", 31);
+            jfa_initialization_shader.use_shader();
+            jfa_initialization_shader.set_int("image\0", 31);
             loaded_image.activate(31);
 
             let plane_vert_positions = vec![
@@ -543,7 +559,7 @@ fn main() {
             imm.begin(
                 quick_renderer::gpu_immediate::GPUPrimType::Tris,
                 6,
-                &test_shader,
+                &jfa_initialization_shader,
             );
 
             plane_vert_positions.iter().for_each(|(pos, uv)| {
