@@ -421,6 +421,10 @@ fn main() {
     )
     .unwrap();
 
+    let jfa_step_shader =
+        shader::Shader::from_strings(include_str!("jfa_step.vert"), include_str!("jfa_step.frag"))
+            .unwrap();
+
     println!(
         "directional_light: uniforms: {:?} attributes: {:?}",
         directional_light_shader.get_uniforms(),
@@ -457,6 +461,12 @@ fn main() {
         jfa_initialization_shader.get_attributes(),
     );
 
+    println!(
+        "jfa_step: uniforms: {:?} attributes: {:?}",
+        jfa_step_shader.get_uniforms(),
+        jfa_step_shader.get_attributes(),
+    );
+
     let mut last_cursor = window.get_cursor_pos();
 
     let mut fps = FPS::default();
@@ -468,6 +478,8 @@ fn main() {
     ));
 
     let framebuffer = FrameBuffer::new();
+
+    let mut jfa_num_steps = 0;
 
     while !window.should_close() {
         glfw.poll_events();
@@ -533,6 +545,10 @@ fn main() {
             }
 
             {
+                jfa_step_shader.use_shader();
+            }
+
+            {
                 flat_texture_shader.use_shader();
                 flat_texture_shader.set_mat4("projection\0", projection_matrix);
                 flat_texture_shader.set_mat4("view\0", view_matrix);
@@ -562,31 +578,78 @@ fn main() {
 
         // Jump flood algorithm
         {
-            let mut image_rendered = TextureRGBAFloat::new_empty(width, height);
-            let renderbuffer = RenderBuffer::new(width, height);
-            framebuffer.activate(&image_rendered, &renderbuffer);
             unsafe {
-                gl::ClearColor(0.0, 0.0, 0.0, 1.0);
-                gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+                gl::Disable(gl::DEPTH_TEST);
+            }
+            let mut jfa_texture_1 = TextureRGBAFloat::new_empty(width, height);
+            let mut jfa_texture_2 = TextureRGBAFloat::new_empty(width, height);
+            let renderbuffer = RenderBuffer::new(width, height);
+            // Initialization
+            {
+                framebuffer.activate(&jfa_texture_1, &renderbuffer);
+                unsafe {
+                    gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+                    gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+                }
+
+                jfa_initialization_shader.use_shader();
+                jfa_initialization_shader.set_int("image\0", 31);
+                loaded_image.activate(31);
+
+                render_quad(&mut imm, &jfa_initialization_shader);
             }
 
-            jfa_initialization_shader.use_shader();
-            jfa_initialization_shader.set_int("image\0", 31);
-            loaded_image.activate(31);
+            // JFA steps
+            {
+                (0..jfa_num_steps).for_each(|step| {
+                    let render_to;
+                    let render_from;
+                    if step % 2 == 0 {
+                        render_from = &mut jfa_texture_1;
+                        render_to = &jfa_texture_2;
+                    } else {
+                        render_from = &mut jfa_texture_2;
+                        render_to = &jfa_texture_1;
+                    }
 
-            render_quad(&mut imm, &jfa_initialization_shader);
+                    framebuffer.activate(render_to, &renderbuffer);
+                    unsafe {
+                        gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+                        gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+                    }
+
+                    let step_size = 2.0_f32.powi(jfa_num_steps - 1 - step);
+
+                    jfa_step_shader.use_shader();
+                    jfa_step_shader.set_int("image\0", 31);
+                    jfa_step_shader.set_float("step_size\0", step_size);
+                    render_from.activate(31);
+
+                    render_quad(&mut imm, &jfa_step_shader);
+                });
+            }
+
+            unsafe {
+                gl::Enable(gl::DEPTH_TEST);
+            }
 
             FrameBuffer::activiate_default();
 
             // Render out the final texture on a plane in 3D space
             {
+                let final_texture;
+                if jfa_num_steps % 2 == 0 {
+                    final_texture = &mut jfa_texture_2;
+                } else {
+                    final_texture = &mut jfa_texture_1;
+                }
                 flat_texture_shader.use_shader();
                 flat_texture_shader.set_int("image\0", 31);
                 flat_texture_shader.set_mat4(
                     "model\0",
                     &glm::translate(&glm::identity(), &glm::vec3(2.0, 1.0, 0.0)),
                 );
-                image_rendered.activate(31);
+                final_texture.activate(31);
 
                 render_quad(&mut imm, flat_texture_shader);
             }
@@ -615,6 +678,7 @@ fn main() {
             egui::Window::new("Hello world!").show(egui.get_egui_ctx(), |ui| {
                 ui.label("Hello World, Outline Render!");
                 ui.label(format!("fps: {:.2}", fps.update_and_get(Some(60.0))));
+                ui.add(egui::Slider::new(&mut jfa_num_steps, 0..=30).text("JFA Num Steps"));
             });
             let (width, height) = window.get_framebuffer_size();
             let _output = egui.end_frame(glm::vec2(width as _, height as _));
