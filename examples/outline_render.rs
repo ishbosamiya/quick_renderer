@@ -365,6 +365,9 @@ fn main() {
 
                 let final_texture;
                 if jfa_convert_to_distance {
+                    unsafe {
+                        gl::Disable(gl::DEPTH_TEST);
+                    }
                     framebuffer.activate(other_texture, &renderbuffer);
 
                     jfa_convert_to_distance_shader.use_shader();
@@ -375,6 +378,9 @@ fn main() {
 
                     final_texture = other_texture;
                     FrameBuffer::activiate_default();
+                    unsafe {
+                        gl::Enable(gl::DEPTH_TEST);
+                    }
                 } else {
                     final_texture = final_jfa_texture;
                 }
