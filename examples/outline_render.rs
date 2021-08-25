@@ -13,6 +13,7 @@ use quick_renderer::framebuffer::FrameBuffer;
 use quick_renderer::glfw;
 use quick_renderer::glm;
 use quick_renderer::gpu_immediate::GPUImmediate;
+use quick_renderer::gpu_utils;
 use quick_renderer::infinite_grid::InfiniteGrid;
 use quick_renderer::infinite_grid::InfiniteGridDrawData;
 use quick_renderer::mesh;
@@ -22,40 +23,6 @@ use quick_renderer::shader;
 use quick_renderer::texture::TextureRGBAFloat;
 
 use std::convert::TryInto;
-
-fn render_quad(imm: &mut GPUImmediate, shader: &shader::Shader) {
-    let plane_vert_positions = vec![
-        (glm::vec3(1.0, 1.0, 0.0), glm::vec2(1.0, 1.0)),
-        (glm::vec3(-1.0, -1.0, 0.0), glm::vec2(0.0, 0.0)),
-        (glm::vec3(-1.0, 1.0, 0.0), glm::vec2(0.0, 1.0)),
-        (glm::vec3(-1.0, -1.0, 0.0), glm::vec2(0.0, 0.0)),
-        (glm::vec3(1.0, 1.0, 0.0), glm::vec2(1.0, 1.0)),
-        (glm::vec3(1.0, -1.0, 0.0), glm::vec2(1.0, 0.0)),
-    ];
-
-    let format = imm.get_cleared_vertex_format();
-    let pos_attr = format.add_attribute(
-        "in_pos\0".to_string(),
-        quick_renderer::gpu_immediate::GPUVertCompType::F32,
-        3,
-        quick_renderer::gpu_immediate::GPUVertFetchMode::Float,
-    );
-    let uv_attr = format.add_attribute(
-        "in_uv\0".to_string(),
-        quick_renderer::gpu_immediate::GPUVertCompType::F32,
-        2,
-        quick_renderer::gpu_immediate::GPUVertFetchMode::Float,
-    );
-
-    imm.begin(quick_renderer::gpu_immediate::GPUPrimType::Tris, 6, shader);
-
-    plane_vert_positions.iter().for_each(|(pos, uv)| {
-        imm.attr_2f(uv_attr, uv[0], uv[1]);
-        imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
-    });
-
-    imm.end();
-}
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -306,7 +273,7 @@ fn main() {
                 jfa_initialization_shader.set_int("image\0", 31);
                 loaded_image.activate(31);
 
-                render_quad(&mut imm, jfa_initialization_shader);
+                gpu_utils::render_quad(&mut imm, jfa_initialization_shader);
             }
 
             // JFA steps
@@ -335,7 +302,7 @@ fn main() {
                     jfa_step_shader.set_float("step_size\0", step_size);
                     render_from.activate(31);
 
-                    render_quad(&mut imm, jfa_step_shader);
+                    gpu_utils::render_quad(&mut imm, jfa_step_shader);
                 });
             }
 
@@ -368,7 +335,7 @@ fn main() {
                     jfa_convert_to_distance_shader.set_int("image\0", 31);
                     final_jfa_texture.activate(31);
 
-                    render_quad(&mut imm, jfa_convert_to_distance_shader);
+                    gpu_utils::render_quad(&mut imm, jfa_convert_to_distance_shader);
 
                     final_texture = other_texture;
                     FrameBuffer::activiate_default();
@@ -392,7 +359,7 @@ fn main() {
                     ),
                 );
                 final_texture.activate(31);
-                render_quad(&mut imm, flat_texture_shader);
+                gpu_utils::render_quad(&mut imm, flat_texture_shader);
             }
         }
 
