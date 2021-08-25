@@ -1,11 +1,14 @@
 pub mod camera;
 pub mod drawable;
 pub mod fps;
+pub mod framebuffer;
 pub mod gpu_immediate;
 pub mod infinite_grid;
 pub mod mesh;
 pub mod meshio;
+pub mod renderbuffer;
 pub mod shader;
+pub mod texture;
 pub mod util;
 
 // expose other crates as public for easier usage.
