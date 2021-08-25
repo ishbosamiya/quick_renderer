@@ -22,6 +22,11 @@ void main() {
 			// must scale the stepping of the uv with the texture size
 			vec2 to_check_uv = v_uv + ((vec2(x, y) * v_step_size)) / textureSize(image, 0);
 
+			if (to_check_uv.x < 0.0 || to_check_uv.x > 1.0
+					|| to_check_uv.y < 0.0 || to_check_uv.y > 1.0) {
+				continue;
+			}
+
 			vec2 value = texture(image, to_check_uv).xy;
 
 			if (value != JFA_NULL_VEC2) {
