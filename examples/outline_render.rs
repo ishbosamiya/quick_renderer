@@ -19,7 +19,6 @@ use quick_renderer::infinite_grid::InfiniteGridDrawData;
 use quick_renderer::jfa;
 use quick_renderer::mesh;
 use quick_renderer::mesh::{MeshDrawData, MeshUseShader};
-use quick_renderer::renderbuffer::RenderBuffer;
 use quick_renderer::shader;
 use quick_renderer::texture::TextureRGBAFloat;
 
@@ -156,8 +155,6 @@ fn main() {
         &image::open("test.png").unwrap().into_rgba8(),
     ));
 
-    let framebuffer = FrameBuffer::new();
-
     let mut jfa_num_steps = 0;
     let mut jfa_convert_to_distance = false;
 
@@ -254,67 +251,30 @@ fn main() {
         ))
         .unwrap();
 
-        // Jump flood algorithm
         {
-            let mut final_jfa_texture = jfa::jfa(&mut loaded_image, jfa_num_steps, &mut imm);
-            // Render out the final texture on a plane in 3D space
-            {
-                let other_texture = TextureRGBAFloat::new_empty(
-                    final_jfa_texture.get_width(),
-                    final_jfa_texture.get_height(),
-                );
-                let renderbuffer = RenderBuffer::new(
-                    final_jfa_texture.get_width(),
-                    final_jfa_texture.get_height(),
-                );
-                let mut final_texture;
-                if jfa_convert_to_distance {
-                    unsafe {
-                        gl::Disable(gl::DEPTH_TEST);
-                    }
-                    let mut prev_viewport_params = [0, 0, 0, 0];
-                    unsafe {
-                        gl::GetIntegerv(gl::VIEWPORT, prev_viewport_params.as_mut_ptr());
-                        gl::Viewport(0, 0, width.try_into().unwrap(), height.try_into().unwrap());
-                    }
-                    framebuffer.activate(&other_texture, &renderbuffer);
+            let mut jfa_texture = jfa::jfa(&mut loaded_image, jfa_num_steps, &mut imm);
 
-                    jfa_convert_to_distance_shader.use_shader();
-                    jfa_convert_to_distance_shader.set_int("image\0", 31);
-                    final_jfa_texture.activate(31);
-
-                    gpu_utils::render_quad(&mut imm, jfa_convert_to_distance_shader);
-
-                    final_texture = other_texture;
-                    FrameBuffer::activiate_default();
-                    unsafe {
-                        gl::Enable(gl::DEPTH_TEST);
-                        gl::Viewport(
-                            prev_viewport_params[0],
-                            prev_viewport_params[1],
-                            prev_viewport_params[2],
-                            prev_viewport_params[3],
-                        );
-                    }
-                } else {
-                    final_texture = final_jfa_texture;
-                }
-
-                flat_texture_shader.use_shader();
-                flat_texture_shader.set_int("image\0", 31);
-                flat_texture_shader.set_mat4(
-                    "model\0",
-                    &glm::scale(
-                        &glm::translate(
-                            &glm::identity(),
-                            &glm::vec3(width as f32 / height as f32 + 1.0, 1.0, 0.0),
-                        ),
-                        &glm::vec3(width as f32 / height as f32, 1.0, 1.0),
-                    ),
-                );
-                final_texture.activate(31);
-                gpu_utils::render_quad(&mut imm, flat_texture_shader);
+            let mut final_texture;
+            if jfa_convert_to_distance {
+                final_texture = jfa::convert_to_distance(&mut jfa_texture, &mut imm);
+            } else {
+                final_texture = jfa_texture;
             }
+
+            flat_texture_shader.use_shader();
+            flat_texture_shader.set_int("image\0", 31);
+            flat_texture_shader.set_mat4(
+                "model\0",
+                &glm::scale(
+                    &glm::translate(
+                        &glm::identity(),
+                        &glm::vec3(width as f32 / height as f32 + 1.0, 1.0, 0.0),
+                    ),
+                    &glm::vec3(width as f32 / height as f32, 1.0, 1.0),
+                ),
+            );
+            final_texture.activate(31);
+            gpu_utils::render_quad(&mut imm, flat_texture_shader);
         }
 
         // Keep meshes that have shaders that need alpha channel

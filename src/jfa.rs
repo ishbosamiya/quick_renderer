@@ -92,3 +92,50 @@ pub fn jfa(
         jfa_texture_1
     }
 }
+
+pub fn convert_to_distance(
+    jfa_texture: &mut TextureRGBAFloat,
+    imm: &mut GPUImmediate,
+) -> TextureRGBAFloat {
+    let framebuffer = FrameBuffer::new();
+    let distance_texture =
+        TextureRGBAFloat::new_empty(jfa_texture.get_width(), jfa_texture.get_height());
+    let renderbuffer = RenderBuffer::new(jfa_texture.get_width(), jfa_texture.get_height());
+
+    unsafe {
+        gl::Disable(gl::DEPTH_TEST);
+    }
+    let mut prev_viewport_params = [0, 0, 0, 0];
+    unsafe {
+        gl::GetIntegerv(gl::VIEWPORT, prev_viewport_params.as_mut_ptr());
+        gl::Viewport(
+            0,
+            0,
+            jfa_texture.get_width().try_into().unwrap(),
+            jfa_texture.get_height().try_into().unwrap(),
+        );
+    }
+    framebuffer.activate(&distance_texture, &renderbuffer);
+
+    let jfa_convert_to_distance_shader = shader::builtins::get_jfa_convert_to_distance_shader()
+        .as_ref()
+        .unwrap();
+    jfa_convert_to_distance_shader.use_shader();
+    jfa_convert_to_distance_shader.set_int("image\0", 31);
+    jfa_texture.activate(31);
+
+    gpu_utils::render_quad(imm, jfa_convert_to_distance_shader);
+
+    FrameBuffer::activiate_default();
+    unsafe {
+        gl::Enable(gl::DEPTH_TEST);
+        gl::Viewport(
+            prev_viewport_params[0],
+            prev_viewport_params[1],
+            prev_viewport_params[2],
+            prev_viewport_params[3],
+        );
+    }
+
+    distance_texture
+}
