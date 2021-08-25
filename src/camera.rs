@@ -93,6 +93,7 @@ impl WindowCamera {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn pan(
         &mut self,
         mouse_start_x: f64,

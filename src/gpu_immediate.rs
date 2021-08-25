@@ -445,7 +445,7 @@ impl GPUImmediate {
             }
         }
 
-        if self.buffer_data == std::ptr::null_mut() {
+        if self.buffer_data.is_null() {
             loop {
                 let error;
                 unsafe {
