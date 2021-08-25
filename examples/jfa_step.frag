@@ -19,11 +19,12 @@ void main() {
 
 	for (int x = -1; x <= 1; x++) {
 		for (int y = -1; y <= 1; y++) {
-			vec2 to_check_uv = v_uv + (vec2(x, y) * v_step_size);
+			// must scale the stepping of the uv with the texture size
+			vec2 to_check_uv = v_uv + ((vec2(x, y) * v_step_size)) / textureSize(image, 0);
 
 			vec2 value = texture(image, to_check_uv).xy;
 
-			if (value.x != JFA_NULL && value.y != JFA_NULL) {
+			if (value != JFA_NULL_VEC2) {
 				float dist = length(value - v_uv);
 				if (dist < best_dist) {
 					best_dist = dist;
