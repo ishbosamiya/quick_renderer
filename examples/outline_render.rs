@@ -126,21 +126,15 @@ fn main() {
         .as_ref()
         .unwrap();
 
-    let jfa_initialization_shader = shader::Shader::from_strings(
-        include_str!("jfa_initialization.vert"),
-        include_str!("jfa_initialization.frag"),
-    )
-    .unwrap();
+    let jfa_initialization_shader = shader::builtins::get_jfa_initialization_shader()
+        .as_ref()
+        .unwrap();
 
-    let jfa_step_shader =
-        shader::Shader::from_strings(include_str!("jfa_step.vert"), include_str!("jfa_step.frag"))
-            .unwrap();
+    let jfa_step_shader = shader::builtins::get_jfa_step_shader().as_ref().unwrap();
 
-    let jfa_convert_to_distance_shader = shader::Shader::from_strings(
-        include_str!("jfa_convert_to_distance.vert"),
-        include_str!("jfa_convert_to_distance.frag"),
-    )
-    .unwrap();
+    let jfa_convert_to_distance_shader = shader::builtins::get_jfa_convert_to_distance_shader()
+        .as_ref()
+        .unwrap();
 
     println!(
         "directional_light: uniforms: {:?} attributes: {:?}",
@@ -312,7 +306,7 @@ fn main() {
                 jfa_initialization_shader.set_int("image\0", 31);
                 loaded_image.activate(31);
 
-                render_quad(&mut imm, &jfa_initialization_shader);
+                render_quad(&mut imm, jfa_initialization_shader);
             }
 
             // JFA steps
@@ -341,7 +335,7 @@ fn main() {
                     jfa_step_shader.set_float("step_size\0", step_size);
                     render_from.activate(31);
 
-                    render_quad(&mut imm, &jfa_step_shader);
+                    render_quad(&mut imm, jfa_step_shader);
                 });
             }
 
@@ -374,7 +368,7 @@ fn main() {
                     jfa_convert_to_distance_shader.set_int("image\0", 31);
                     final_jfa_texture.activate(31);
 
-                    render_quad(&mut imm, &jfa_convert_to_distance_shader);
+                    render_quad(&mut imm, jfa_convert_to_distance_shader);
 
                     final_texture = other_texture;
                     FrameBuffer::activiate_default();

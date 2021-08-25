@@ -60,3 +60,21 @@ load_builtin_shader_easy!(
     "../../shaders/flat_texture.vert";
     "../../shaders/flat_texture.frag"
 );
+
+load_builtin_shader_easy!(
+    jfa_initialization;
+    "../../shaders/jfa_initialization.vert";
+    "../../shaders/jfa_initialization.frag"
+);
+
+load_builtin_shader_easy!(
+    jfa_step;
+    "../../shaders/jfa_step.vert";
+    "../../shaders/jfa_step.frag"
+);
+
+load_builtin_shader_easy!(
+    jfa_convert_to_distance;
+    "../../shaders/jfa_convert_to_distance.vert";
+    "../../shaders/jfa_convert_to_distance.frag"
+);
