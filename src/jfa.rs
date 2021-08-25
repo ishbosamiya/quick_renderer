@@ -46,34 +46,32 @@ pub fn jfa(
     }
 
     // JFA steps
-    {
-        (0..num_steps).for_each(|step| {
-            let render_to;
-            let render_from;
-            if step % 2 == 0 {
-                render_from = &mut jfa_texture_1;
-                render_to = &jfa_texture_2;
-            } else {
-                render_from = &mut jfa_texture_2;
-                render_to = &jfa_texture_1;
-            }
+    (0..num_steps).for_each(|step| {
+        let render_to;
+        let render_from;
+        if step % 2 == 0 {
+            render_from = &mut jfa_texture_1;
+            render_to = &jfa_texture_2;
+        } else {
+            render_from = &mut jfa_texture_2;
+            render_to = &jfa_texture_1;
+        }
 
-            framebuffer.activate(render_to, &renderbuffer);
-            unsafe {
-                gl::ClearColor(0.0, 0.0, 0.0, 1.0);
-                gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-            }
+        framebuffer.activate(render_to, &renderbuffer);
+        unsafe {
+            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+        }
 
-            let step_size = 2.0_f32.powi((num_steps - 1 - step).try_into().unwrap());
+        let step_size = 2.0_f32.powi((num_steps - 1 - step).try_into().unwrap());
 
-            jfa_step_shader.use_shader();
-            jfa_step_shader.set_int("image\0", 31);
-            jfa_step_shader.set_float("step_size\0", step_size);
-            render_from.activate(31);
+        jfa_step_shader.use_shader();
+        jfa_step_shader.set_int("image\0", 31);
+        jfa_step_shader.set_float("step_size\0", step_size);
+        render_from.activate(31);
 
-            gpu_utils::render_quad(imm, jfa_step_shader);
-        });
-    }
+        gpu_utils::render_quad(imm, jfa_step_shader);
+    });
 
     unsafe {
         gl::Enable(gl::DEPTH_TEST);
@@ -86,7 +84,9 @@ pub fn jfa(
     }
     FrameBuffer::activiate_default();
 
-    if num_steps % 2 == 0 {
+    if num_steps == 0 {
+        jfa_texture_1
+    } else if num_steps % 2 == 0 {
         jfa_texture_2
     } else {
         jfa_texture_1
