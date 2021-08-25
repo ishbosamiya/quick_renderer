@@ -269,6 +269,10 @@ fn main() {
             let framebuffer = FrameBuffer::new();
             let renderbuffer = RenderBuffer::new(test_image_resolution.0, test_image_resolution.1);
             framebuffer.activate(&test_image, &renderbuffer);
+            unsafe {
+                gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+                gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+            }
 
             smooth_color_3d_shader.use_shader();
             smooth_color_3d_shader.set_mat4(
