@@ -309,6 +309,40 @@ impl Drop for FrameBuffer {
     }
 }
 
+fn render_quad(imm: &mut GPUImmediate, shader: &shader::Shader) {
+    let plane_vert_positions = vec![
+        (glm::vec3(1.0, 1.0, 0.0), glm::vec2(1.0, 1.0)),
+        (glm::vec3(-1.0, -1.0, 0.0), glm::vec2(0.0, 0.0)),
+        (glm::vec3(-1.0, 1.0, 0.0), glm::vec2(0.0, 1.0)),
+        (glm::vec3(-1.0, -1.0, 0.0), glm::vec2(0.0, 0.0)),
+        (glm::vec3(1.0, 1.0, 0.0), glm::vec2(1.0, 1.0)),
+        (glm::vec3(1.0, -1.0, 0.0), glm::vec2(1.0, 0.0)),
+    ];
+
+    let format = imm.get_cleared_vertex_format();
+    let pos_attr = format.add_attribute(
+        "in_pos\0".to_string(),
+        quick_renderer::gpu_immediate::GPUVertCompType::F32,
+        3,
+        quick_renderer::gpu_immediate::GPUVertFetchMode::Float,
+    );
+    let uv_attr = format.add_attribute(
+        "in_uv\0".to_string(),
+        quick_renderer::gpu_immediate::GPUVertCompType::F32,
+        2,
+        quick_renderer::gpu_immediate::GPUVertFetchMode::Float,
+    );
+
+    imm.begin(quick_renderer::gpu_immediate::GPUPrimType::Tris, 6, shader);
+
+    plane_vert_positions.iter().for_each(|(pos, uv)| {
+        imm.attr_2f(uv_attr, uv[0], uv[1]);
+        imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+    });
+
+    imm.end();
+}
+
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
@@ -540,44 +574,11 @@ fn main() {
             jfa_initialization_shader.set_int("image\0", 31);
             loaded_image.activate(31);
 
-            let plane_vert_positions = vec![
-                (glm::vec3(1.0, 1.0, 0.0), glm::vec2(1.0, 1.0)),
-                (glm::vec3(-1.0, -1.0, 0.0), glm::vec2(0.0, 0.0)),
-                (glm::vec3(-1.0, 1.0, 0.0), glm::vec2(0.0, 1.0)),
-                (glm::vec3(-1.0, -1.0, 0.0), glm::vec2(0.0, 0.0)),
-                (glm::vec3(1.0, 1.0, 0.0), glm::vec2(1.0, 1.0)),
-                (glm::vec3(1.0, -1.0, 0.0), glm::vec2(1.0, 0.0)),
-            ];
-
-            let format = imm.get_cleared_vertex_format();
-            let pos_attr = format.add_attribute(
-                "in_pos\0".to_string(),
-                quick_renderer::gpu_immediate::GPUVertCompType::F32,
-                3,
-                quick_renderer::gpu_immediate::GPUVertFetchMode::Float,
-            );
-            let uv_attr = format.add_attribute(
-                "in_uv\0".to_string(),
-                quick_renderer::gpu_immediate::GPUVertCompType::F32,
-                2,
-                quick_renderer::gpu_immediate::GPUVertFetchMode::Float,
-            );
-
-            imm.begin(
-                quick_renderer::gpu_immediate::GPUPrimType::Tris,
-                6,
-                &jfa_initialization_shader,
-            );
-
-            plane_vert_positions.iter().for_each(|(pos, uv)| {
-                imm.attr_2f(uv_attr, uv[0], uv[1]);
-                imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
-            });
-
-            imm.end();
+            render_quad(&mut imm, &jfa_initialization_shader);
 
             FrameBuffer::activiate_default();
 
+            // Render out the final texture on a plane in 3D space
             {
                 flat_texture_shader.use_shader();
                 flat_texture_shader.set_int("image\0", 31);
@@ -587,41 +588,7 @@ fn main() {
                 );
                 image_rendered.activate(31);
 
-                let plane_vert_positions = vec![
-                    (glm::vec3(1.0, 1.0, 0.0), glm::vec2(1.0, 1.0)),
-                    (glm::vec3(-1.0, -1.0, 0.0), glm::vec2(0.0, 0.0)),
-                    (glm::vec3(-1.0, 1.0, 0.0), glm::vec2(0.0, 1.0)),
-                    (glm::vec3(-1.0, -1.0, 0.0), glm::vec2(0.0, 0.0)),
-                    (glm::vec3(1.0, 1.0, 0.0), glm::vec2(1.0, 1.0)),
-                    (glm::vec3(1.0, -1.0, 0.0), glm::vec2(1.0, 0.0)),
-                ];
-
-                let format = imm.get_cleared_vertex_format();
-                let pos_attr = format.add_attribute(
-                    "in_pos\0".to_string(),
-                    quick_renderer::gpu_immediate::GPUVertCompType::F32,
-                    3,
-                    quick_renderer::gpu_immediate::GPUVertFetchMode::Float,
-                );
-                let uv_attr = format.add_attribute(
-                    "in_uv\0".to_string(),
-                    quick_renderer::gpu_immediate::GPUVertCompType::F32,
-                    2,
-                    quick_renderer::gpu_immediate::GPUVertFetchMode::Float,
-                );
-
-                imm.begin(
-                    quick_renderer::gpu_immediate::GPUPrimType::Tris,
-                    6,
-                    flat_texture_shader,
-                );
-
-                plane_vert_positions.iter().for_each(|(pos, uv)| {
-                    imm.attr_2f(uv_attr, uv[0], uv[1]);
-                    imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
-                });
-
-                imm.end();
+                render_quad(&mut imm, flat_texture_shader);
             }
         }
 
