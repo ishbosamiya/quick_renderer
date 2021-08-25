@@ -47,7 +47,7 @@ impl TextureRGBAFloat {
             gl::TexImage2D(
                 gl::TEXTURE_2D,
                 0,
-                gl::RGBA.try_into().unwrap(),
+                gl::RGBA32F.try_into().unwrap(),
                 res.width.try_into().unwrap(),
                 res.height.try_into().unwrap(),
                 0,
@@ -135,7 +135,7 @@ impl TextureRGBAFloat {
             gl::TexImage2D(
                 gl::TEXTURE_2D,
                 0,
-                gl::RGBA.try_into().unwrap(),
+                gl::RGBA32F.try_into().unwrap(),
                 self.width.try_into().unwrap(),
                 self.height.try_into().unwrap(),
                 0,
