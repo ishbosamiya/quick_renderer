@@ -126,9 +126,6 @@ fn main() {
         .as_ref()
         .unwrap();
 
-    let test_shader =
-        shader::Shader::from_strings(include_str!("test.vert"), include_str!("test.frag")).unwrap();
-
     let jfa_initialization_shader = shader::Shader::from_strings(
         include_str!("jfa_initialization.vert"),
         include_str!("jfa_initialization.frag"),
@@ -167,12 +164,6 @@ fn main() {
         "flat_texture: uniforms: {:?} attributes: {:?}",
         flat_texture_shader.get_uniforms(),
         flat_texture_shader.get_attributes(),
-    );
-
-    println!(
-        "test: uniforms: {:?} attributes: {:?}",
-        test_shader.get_uniforms(),
-        test_shader.get_attributes(),
     );
 
     println!(
@@ -259,12 +250,6 @@ fn main() {
                     .set_vec4("color_face_front\0", &glm::vec4(0.0, 0.0, 1.0, 1.0));
                 face_orientation_shader
                     .set_vec4("color_face_back\0", &glm::vec4(1.0, 0.0, 0.0, 1.0));
-            }
-
-            {
-                test_shader.use_shader();
-                test_shader.set_mat4("projection\0", projection_matrix);
-                test_shader.set_mat4("view\0", view_matrix);
             }
 
             {
