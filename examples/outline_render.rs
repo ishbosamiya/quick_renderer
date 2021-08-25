@@ -491,7 +491,12 @@ fn main() {
 
     let framebuffer = FrameBuffer::new();
 
-    let mut jfa_num_steps = 0;
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum JFA {
+        Steps(usize),
+        Width(usize),
+    }
+    let mut jfa = JFA::Steps(0);
     let mut jfa_convert_to_distance = false;
 
     while !window.should_close() {
@@ -618,32 +623,68 @@ fn main() {
 
             // JFA steps
             {
-                (0..jfa_num_steps).for_each(|step| {
-                    let render_to;
-                    let render_from;
-                    if step % 2 == 0 {
-                        render_from = &mut jfa_texture_1;
-                        render_to = &jfa_texture_2;
-                    } else {
-                        render_from = &mut jfa_texture_2;
-                        render_to = &jfa_texture_1;
+                match jfa {
+                    JFA::Steps(jfa_num_steps) => {
+                        (0..jfa_num_steps).for_each(|step| {
+                            let render_to;
+                            let render_from;
+                            if step % 2 == 0 {
+                                render_from = &mut jfa_texture_1;
+                                render_to = &jfa_texture_2;
+                            } else {
+                                render_from = &mut jfa_texture_2;
+                                render_to = &jfa_texture_1;
+                            }
+
+                            framebuffer.activate(render_to, &renderbuffer);
+                            unsafe {
+                                gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+                                gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+                            }
+
+                            let step_size =
+                                2.0_f32.powi((jfa_num_steps - 1 - step).try_into().unwrap());
+
+                            jfa_step_shader.use_shader();
+                            jfa_step_shader.set_int("image\0", 31);
+                            jfa_step_shader.set_float("step_size\0", step_size);
+                            render_from.activate(31);
+
+                            render_quad(&mut imm, &jfa_step_shader);
+                        });
                     }
+                    JFA::Width(width) => {
+                        let mut step_size = width as f32;
+                        let mut step = 0;
+                        while step_size > 0.0 {
+                            let render_to;
+                            let render_from;
+                            if step % 2 == 0 {
+                                render_from = &mut jfa_texture_1;
+                                render_to = &jfa_texture_2;
+                            } else {
+                                render_from = &mut jfa_texture_2;
+                                render_to = &jfa_texture_1;
+                            }
 
-                    framebuffer.activate(render_to, &renderbuffer);
-                    unsafe {
-                        gl::ClearColor(0.0, 0.0, 0.0, 1.0);
-                        gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+                            framebuffer.activate(render_to, &renderbuffer);
+                            unsafe {
+                                gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+                                gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+                            }
+
+                            jfa_step_shader.use_shader();
+                            jfa_step_shader.set_int("image\0", 31);
+                            jfa_step_shader.set_float("step_size\0", step_size);
+                            render_from.activate(31);
+
+                            render_quad(&mut imm, &jfa_step_shader);
+
+                            step_size = (step_size / 2.0).floor();
+                            step += 1;
+                        }
                     }
-
-                    let step_size = 2.0_f32.powi(jfa_num_steps - 1 - step);
-
-                    jfa_step_shader.use_shader();
-                    jfa_step_shader.set_int("image\0", 31);
-                    jfa_step_shader.set_float("step_size\0", step_size);
-                    render_from.activate(31);
-
-                    render_quad(&mut imm, &jfa_step_shader);
-                });
+                }
             }
 
             unsafe {
@@ -656,14 +697,27 @@ fn main() {
             {
                 let final_jfa_texture;
                 let other_texture;
-                if jfa_num_steps % 2 == 0 {
-                    final_jfa_texture = &mut jfa_texture_2;
-                    other_texture = &mut jfa_texture_1;
-                } else {
-                    final_jfa_texture = &mut jfa_texture_1;
-                    other_texture = &mut jfa_texture_2;
+                match jfa {
+                    JFA::Steps(jfa_num_steps) => {
+                        if jfa_num_steps % 2 == 0 {
+                            final_jfa_texture = &mut jfa_texture_2;
+                            other_texture = &mut jfa_texture_1;
+                        } else {
+                            final_jfa_texture = &mut jfa_texture_1;
+                            other_texture = &mut jfa_texture_2;
+                        }
+                    }
+                    JFA::Width(width) => {
+                        let width = width as f32;
+                        if width.log2().ceil() as i32 % 2 == 0 {
+                            final_jfa_texture = &mut jfa_texture_2;
+                            other_texture = &mut jfa_texture_1;
+                        } else {
+                            final_jfa_texture = &mut jfa_texture_1;
+                            other_texture = &mut jfa_texture_2;
+                        }
+                    }
                 }
-
                 let final_texture;
                 if jfa_convert_to_distance {
                     framebuffer.activate(other_texture, &renderbuffer);
@@ -684,7 +738,13 @@ fn main() {
                 flat_texture_shader.set_int("image\0", 31);
                 flat_texture_shader.set_mat4(
                     "model\0",
-                    &glm::translate(&glm::identity(), &glm::vec3(2.0, 1.0, 0.0)),
+                    &glm::translate(
+                        &glm::scale(
+                            &glm::identity(),
+                            &glm::vec3(width as f32 / height as f32, 1.0, 1.0),
+                        ),
+                        &glm::vec3(2.0, 1.0, 0.0),
+                    ),
                 );
                 final_texture.activate(31);
                 render_quad(&mut imm, flat_texture_shader);
@@ -714,11 +774,26 @@ fn main() {
             egui::Window::new("Hello world!").show(egui.get_egui_ctx(), |ui| {
                 ui.label("Hello World, Outline Render!");
                 ui.label(format!("fps: {:.2}", fps.update_and_get(Some(60.0))));
-                ui.add(
-                    egui::Slider::new(&mut jfa_num_steps, 0..=30)
-                        .text("JFA Num Steps")
-                        .clamp_to_range(true),
-                );
+                egui::ComboBox::from_label("JFA Type")
+                    .selected_text(format!("{:?}", jfa))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut jfa, JFA::Steps(0), "JFA Steps");
+                        ui.selectable_value(&mut jfa, JFA::Width(0), "JFA Width");
+                    });
+                {
+                    match &mut jfa {
+                        JFA::Steps(steps) => {
+                            ui.add(
+                                egui::Slider::new(steps, 0..=30)
+                                    .text("JFA Num Steps")
+                                    .clamp_to_range(true),
+                            );
+                        }
+                        JFA::Width(width) => {
+                            ui.add(egui::Slider::new(width, 0..=75).text("JFA width"));
+                        }
+                    }
+                }
                 ui.checkbox(&mut jfa_convert_to_distance, "JFA Convert To Distance");
             });
             let (width, height) = window.get_framebuffer_size();
