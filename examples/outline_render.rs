@@ -22,15 +22,15 @@ use std::convert::TryInto;
 
 use gl::types::{GLuint, GLvoid};
 
-pub struct Texture {
+pub struct TextureRGBAFloat {
     width: usize,
     height: usize,
-    pixels: Vec<(u8, u8, u8, u8)>,
+    pixels: Vec<(f32, f32, f32, f32)>,
 
     gl_tex: GLuint,
 }
 
-impl Texture {
+impl TextureRGBAFloat {
     pub fn new_empty(width: usize, height: usize) -> Self {
         let gl_tex = Self::gen_gl_texture();
         let pixels = Vec::new();
@@ -52,7 +52,7 @@ impl Texture {
                 res.height.try_into().unwrap(),
                 0,
                 gl::RGBA,
-                gl::UNSIGNED_BYTE,
+                gl::FLOAT,
                 std::ptr::null(),
             )
         }
@@ -67,7 +67,14 @@ impl Texture {
             height: tex.dimensions().1.try_into().unwrap(),
             pixels: tex
                 .pixels()
-                .map(|a| (a.0[0], a.0[1], a.0[2], a.0[3]))
+                .map(|a| {
+                    (
+                        a.0[0] as f32 / 255.0,
+                        a.0[1] as f32 / 255.0,
+                        a.0[2] as f32 / 255.0,
+                        a.0[3] as f32 / 255.0,
+                    )
+                })
                 .collect(),
             gl_tex,
         };
@@ -133,7 +140,7 @@ impl Texture {
                 self.height.try_into().unwrap(),
                 0,
                 gl::RGBA,
-                gl::UNSIGNED_BYTE,
+                gl::FLOAT,
                 self.pixels.as_ptr() as *const GLvoid,
             )
         }
@@ -190,7 +197,7 @@ impl Texture {
     }
 }
 
-impl Drop for Texture {
+impl Drop for TextureRGBAFloat {
     fn drop(&mut self) {
         unsafe {
             gl::DeleteTextures(1, &self.gl_tex);
@@ -253,7 +260,7 @@ impl FrameBuffer {
         Self { gl_framebuffer }
     }
 
-    pub fn activate(&self, texture: &Texture, renderbuffer: &RenderBuffer) {
+    pub fn activate(&self, texture: &TextureRGBAFloat, renderbuffer: &RenderBuffer) {
         unsafe {
             gl::BindFramebuffer(gl::FRAMEBUFFER, self.gl_framebuffer);
         }
@@ -422,7 +429,7 @@ fn main() {
 
     let infinite_grid = InfiniteGrid::default();
 
-    let mut loaded_image = Texture::from_image(&image::imageops::flip_vertical(
+    let mut loaded_image = TextureRGBAFloat::from_image(&image::imageops::flip_vertical(
         &image::open("test.png").unwrap().into_rgba8(),
     ));
 
@@ -521,7 +528,7 @@ fn main() {
 
         // Jump flood algorithm
         {
-            let mut image_rendered = Texture::new_empty(width, height);
+            let mut image_rendered = TextureRGBAFloat::new_empty(width, height);
             let renderbuffer = RenderBuffer::new(width, height);
             framebuffer.activate(&image_rendered, &renderbuffer);
             unsafe {
