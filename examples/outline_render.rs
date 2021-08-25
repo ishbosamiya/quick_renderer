@@ -19,6 +19,7 @@ use quick_renderer::infinite_grid::InfiniteGridDrawData;
 use quick_renderer::jfa;
 use quick_renderer::mesh;
 use quick_renderer::mesh::{MeshDrawData, MeshUseShader};
+use quick_renderer::renderbuffer::RenderBuffer;
 use quick_renderer::shader;
 use quick_renderer::texture::TextureRGBAFloat;
 
@@ -29,7 +30,7 @@ fn main() {
 
     // creating window
     let (mut window, events) = glfw
-        .create_window(1280, 720, "Simple Render", glfw::WindowMode::Windowed)
+        .create_window(1280, 720, "Outline Render", glfw::WindowMode::Windowed)
         .expect("ERROR: glfw window creation failed");
 
     // setup bunch of polling data
@@ -65,7 +66,7 @@ fn main() {
         .insert(TextStyle::Small, (FontFamily::Proportional, 15.0));
     egui.get_egui_ctx().set_fonts(fonts);
 
-    let mesh = mesh::builtins::get_ico_sphere_subd_02();
+    let mesh = mesh::builtins::get_monkey_subd_01();
 
     let mut camera = WindowCamera::new(
         glm::vec3(0.0, 0.0, 3.0),
@@ -151,12 +152,9 @@ fn main() {
 
     let infinite_grid = InfiniteGrid::default();
 
-    let mut loaded_image = TextureRGBAFloat::from_image(&image::imageops::flip_vertical(
-        &image::open("test.png").unwrap().into_rgba8(),
-    ));
-
     let mut jfa_num_steps = 0;
     let mut jfa_convert_to_distance = false;
+    let mut test_image_resolution = (1920, 1080);
 
     while !window.should_close() {
         glfw.poll_events();
@@ -254,8 +252,54 @@ fn main() {
         ))
         .unwrap();
 
+        let mut test_image =
+            TextureRGBAFloat::new_empty(test_image_resolution.0, test_image_resolution.1);
+        // generate the test image by rendering a mesh
         {
-            let mut jfa_texture = jfa::jfa(&mut loaded_image, jfa_num_steps, &mut imm);
+            let mut prev_viewport_params = [0, 0, 0, 0];
+            unsafe {
+                gl::GetIntegerv(gl::VIEWPORT, prev_viewport_params.as_mut_ptr());
+                gl::Viewport(
+                    0,
+                    0,
+                    test_image.get_width().try_into().unwrap(),
+                    test_image.get_height().try_into().unwrap(),
+                );
+            }
+            let framebuffer = FrameBuffer::new();
+            let renderbuffer = RenderBuffer::new(test_image_resolution.0, test_image_resolution.1);
+            framebuffer.activate(&test_image, &renderbuffer);
+
+            smooth_color_3d_shader.use_shader();
+            smooth_color_3d_shader.set_mat4(
+                "projection\0",
+                &glm::convert(
+                    camera.get_projection_matrix(test_image.get_width(), test_image.get_height()),
+                ),
+            );
+            smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
+            mesh.draw(&mut MeshDrawData::new(
+                &mut imm,
+                MeshUseShader::SmoothColor3D,
+                Some(glm::vec4(1.0, 1.0, 1.0, 1.0)),
+            ))
+            .unwrap();
+
+            // reset everything to what it was before this test image rendering
+            FrameBuffer::activiate_default();
+            unsafe {
+                gl::Viewport(
+                    prev_viewport_params[0],
+                    prev_viewport_params[1],
+                    prev_viewport_params[2],
+                    prev_viewport_params[3],
+                );
+            }
+            smooth_color_3d_shader.set_mat4("projection\0", projection_matrix);
+        }
+
+        {
+            let mut jfa_texture = jfa::jfa(&mut test_image, jfa_num_steps, &mut imm);
 
             let mut final_texture;
             if jfa_convert_to_distance {
@@ -266,14 +310,16 @@ fn main() {
 
             flat_texture_shader.use_shader();
             flat_texture_shader.set_int("image\0", 31);
+            let final_texture_aspect_ratio =
+                final_texture.get_width() as f32 / final_texture.get_height() as f32;
             flat_texture_shader.set_mat4(
                 "model\0",
                 &glm::scale(
                     &glm::translate(
                         &glm::identity(),
-                        &glm::vec3(width as f32 / height as f32 + 1.0, 1.0, 0.0),
+                        &glm::vec3(final_texture_aspect_ratio + 1.0, 1.0, 0.0),
                     ),
-                    &glm::vec3(width as f32 / height as f32, 1.0, 1.0),
+                    &glm::vec3(final_texture_aspect_ratio, 1.0, 1.0),
                 ),
             );
             final_texture.activate(31);
@@ -309,6 +355,16 @@ fn main() {
                         .clamp_to_range(true),
                 );
                 ui.checkbox(&mut jfa_convert_to_distance, "JFA Convert To Distance");
+                ui.add(
+                    egui::Slider::new(&mut test_image_resolution.0, 1..=3840)
+                        .text("Test Image Width")
+                        .clamp_to_range(true),
+                );
+                ui.add(
+                    egui::Slider::new(&mut test_image_resolution.1, 1..=2160)
+                        .text("Test Image Height")
+                        .clamp_to_range(true),
+                );
             });
             let _output = egui.end_frame(glm::vec2(window_width as _, window_height as _));
         }
