@@ -300,7 +300,7 @@ mod tests {
     use super::*;
     #[test]
     fn meshreader_read_obj_test_01() {
-        let data = MeshIO::read_obj(&Path::new("tests/obj_test_01.obj")).unwrap();
+        let data = MeshIO::read_obj(Path::new("tests/obj_test_01.obj")).unwrap();
         assert_eq!(data.positions.len(), 5);
         assert_eq!(data.uvs.len(), 6);
         assert_eq!(data.normals.len(), 2);
@@ -312,7 +312,7 @@ mod tests {
     }
     #[test]
     fn meshreader_read_obj_test_02() {
-        match MeshIO::read_obj(&Path::new("tests/obj_test_02.obj")) {
+        match MeshIO::read_obj(Path::new("tests/obj_test_02.obj")) {
             Err(error) => match error {
                 MeshIOError::InvalidFile => (),
                 _ => panic!("Should have gotten an invalid file error"),
@@ -322,6 +322,6 @@ mod tests {
     }
     #[test]
     fn meshreader_read_obj_test_03() {
-        MeshIO::read_obj(&Path::new("tests/obj_test_03.obj")).unwrap();
+        MeshIO::read_obj(Path::new("tests/obj_test_03.obj")).unwrap();
     }
 }
