@@ -26,43 +26,39 @@ use quick_renderer::mesh::FaceIndex;
 use quick_renderer::mesh::{Mesh, MeshDrawData, MeshUseShader};
 use quick_renderer::shader;
 
+// TODO(ish): add bvh axis as a parameter
+
 struct Config {
     bvh: Option<BVHTree<FaceIndex>>,
     draw_bvh: bool,
     bvh_draw_level: usize,
     should_cast_ray: bool,
+    bvh_tree_type: u8,
+    _bvh_axis: u8,
     bvh_color: glm::DVec4,
     bvh_ray_color: glm::DVec4,
     bvh_ray_intersection: Vec<(glm::DVec3, RayHitData<FaceIndex>)>,
 }
 
-impl Config {
-    fn new(
-        draw_bvh: bool,
-        bvh_draw_level: usize,
-        should_cast_ray: bool,
-        bvh_color: glm::DVec4,
-        bvh_ray_color: glm::DVec4,
-    ) -> Self {
+impl Default for Config {
+    fn default() -> Self {
         Self {
             bvh: None,
-            draw_bvh,
-            bvh_draw_level,
-            should_cast_ray,
-            bvh_color,
-            bvh_ray_color,
+            draw_bvh: true,
+            bvh_draw_level: 0,
+            should_cast_ray: false,
+            bvh_tree_type: 4,
+            _bvh_axis: 8,
+            bvh_color: glm::vec4(0.9, 0.5, 0.2, 1.0),
+            bvh_ray_color: glm::vec4(0.2, 0.5, 0.9, 1.0),
             bvh_ray_intersection: Vec::new(),
         }
     }
+}
 
-    fn build_bvh<END, EVD, EED, EFD>(
-        &mut self,
-        mesh: &Mesh<END, EVD, EED, EFD>,
-        epsilon: f64,
-        tree_type: u8,
-        axis: u8,
-    ) {
-        let mut bvh = BVHTree::new(mesh.get_faces().len(), epsilon, tree_type, axis);
+impl Config {
+    fn build_bvh<END, EVD, EED, EFD>(&mut self, mesh: &Mesh<END, EVD, EED, EFD>, epsilon: f64) {
+        let mut bvh = BVHTree::new(mesh.get_faces().len(), epsilon, self.bvh_tree_type, 8);
 
         mesh.get_faces().iter().for_each(|(_, face)| {
             let co = face
@@ -169,15 +165,8 @@ fn main() {
 
     let infinite_grid = InfiniteGrid::default();
 
-    let mut config = Config::new(
-        true,
-        0,
-        false,
-        glm::vec4(0.9, 0.5, 0.2, 1.0),
-        glm::vec4(0.2, 0.5, 0.9, 1.0),
-    );
-
-    config.build_bvh(mesh, 0.1, 4, 8);
+    let mut config = Config::default();
+    config.build_bvh(mesh, 0.1);
 
     while !window.should_close() {
         glfw.poll_events();
@@ -366,11 +355,24 @@ fn main() {
 
                 ui.checkbox(&mut config.draw_bvh, "Draw BVH");
                 ui.add(
+                    egui::Slider::new(&mut config.bvh_tree_type, 2..=32)
+                        .text("BVH Tree Type")
+                        .clamp_to_range(true),
+                );
+                // ui.add(
+                //     egui::Slider::new(&mut config.bvh_axis, 6..=26)
+                //         .text("BVH Axis")
+                //         .clamp_to_range(true),
+                // );
+                ui.add(
                     egui::Slider::new(&mut config.bvh_draw_level, 0..=15).text("BVH Draw Level"),
                 );
                 color_edit_button_dvec4(ui, "BVH Color", &mut config.bvh_color);
                 color_edit_button_dvec4(ui, "BVH Ray Color", &mut config.bvh_ray_color);
 
+                if ui.button("Rebuild BVH").clicked() {
+                    config.build_bvh(mesh, 0.1);
+                }
                 if ui.button("Delete Rays").clicked() {
                     config.bvh_ray_intersection.clear();
                 }
