@@ -1,3 +1,5 @@
+// Based on Blender's BLI_kdopbvh
+
 use generational_arena::{Arena, Index};
 use lazy_static::lazy_static;
 use nalgebra_glm as glm;
@@ -140,6 +142,26 @@ where
 
         *r_dist = t1x.max(t1y).max(t1z);
         true
+    }
+
+    /// Determines the nearest point of self.
+    /// Returns the nearest point
+    fn cal_nearest_point_squared(&self, proj: &glm::DVec3) -> glm::DVec3 {
+        let mut nearest: glm::DVec3 = glm::zero();
+        // nearest on AABB hull
+        (0..3).for_each(|i| {
+            let val = if self.bv[i * 2] > proj[i] {
+                self.bv[i * 2]
+            } else {
+                proj[i]
+            };
+            nearest[i] = if self.bv[i * 2 + 1] < val {
+                self.bv[i * 2 + 1]
+            } else {
+                val
+            };
+        });
+        nearest
     }
 }
 
@@ -344,6 +366,64 @@ impl RayCastData {
             idot_axis,
             index,
         }
+    }
+}
+
+pub struct NearestData<T>
+where
+    T: Copy,
+{
+    elem_index: Option<T>,
+    co: Option<glm::DVec3>,
+    normal: Option<glm::DVec3>,
+    dist_sq: f64,
+}
+
+impl<T> NearestData<T>
+where
+    T: Copy,
+{
+    pub fn new(
+        elem_index: Option<T>,
+        co: Option<glm::DVec3>,
+        normal: Option<glm::DVec3>,
+        dist_sq: f64,
+    ) -> Self {
+        Self {
+            elem_index,
+            co,
+            normal,
+            dist_sq,
+        }
+    }
+
+    pub fn set_info(
+        &mut self,
+        elem_index: Option<T>,
+        co: Option<glm::DVec3>,
+        normal: Option<glm::DVec3>,
+        dist_sq: f64,
+    ) {
+        self.elem_index = elem_index;
+        self.co = co;
+        self.normal = normal;
+        self.dist_sq = dist_sq;
+    }
+
+    pub fn get_elem_index(&self) -> &Option<T> {
+        &self.elem_index
+    }
+
+    pub fn get_co(&self) -> &Option<glm::DVec3> {
+        &self.co
+    }
+
+    pub fn get_normal(&self) -> &Option<glm::DVec3> {
+        &self.normal
+    }
+
+    pub fn get_dist_sq(&self) -> f64 {
+        self.dist_sq
     }
 }
 
@@ -1134,6 +1214,87 @@ where
         } else {
             None
         }
+    }
+
+    fn find_nearest_dfs(
+        &self,
+        node_index: BVHNodeIndex,
+        proj: &[f64; 13],
+        r_nearest_data: &mut NearestData<T>,
+    ) {
+        let node = self.node_array.get(node_index.0).unwrap();
+        let proj_v3 = glm::vec3(proj[0], proj[1], proj[2]);
+
+        if node.totnode == 0 {
+            let nearest = node.cal_nearest_point_squared(&proj_v3);
+            let dist_sq = glm::distance2(&proj_v3, &nearest);
+            r_nearest_data.set_info(node.elem_index, Some(nearest), None, dist_sq);
+        } else {
+            // Better heuristic to pick the closest node to dive on
+            if proj[node.main_axis as usize]
+                <= self.node_array.get(node.children[0].0).unwrap().bv
+                    [node.main_axis as usize * 2 + 1]
+            {
+                (0..node.totnode).for_each(|i| {
+                    let node_child = self.node_array.get(node.children[i as usize].0).unwrap();
+                    let nearest = node_child.cal_nearest_point_squared(&proj_v3);
+                    let node_child_dist_sq = glm::distance2(&proj_v3, &nearest);
+
+                    if node_child_dist_sq >= r_nearest_data.get_dist_sq() {
+                        return;
+                    }
+
+                    self.find_nearest_dfs(node.children[i as usize], proj, r_nearest_data);
+                });
+            } else {
+                (0..node.totnode).for_each(|i| {
+                    let i = node.totnode - i - 1;
+                    let node_child = self.node_array.get(node.children[i as usize].0).unwrap();
+                    let nearest = node_child.cal_nearest_point_squared(&proj_v3);
+                    let node_child_dist_sq = glm::distance2(&proj_v3, &nearest);
+
+                    if node_child_dist_sq >= r_nearest_data.get_dist_sq() {
+                        return;
+                    }
+
+                    self.find_nearest_dfs(node.children[i as usize], proj, r_nearest_data);
+                });
+            }
+        }
+    }
+
+    fn find_nearest_dfs_begin(
+        &self,
+        node_index: BVHNodeIndex,
+        dist_sq: f64,
+        proj: &[f64; 13],
+    ) -> Option<NearestData<T>> {
+        let node = self.node_array.get(node_index.0).unwrap();
+        let proj_v3 = glm::vec3(proj[0], proj[1], proj[2]);
+        let nearest = node.cal_nearest_point_squared(&proj_v3);
+        if glm::distance2(&proj_v3, &nearest) >= dist_sq {
+            None
+        } else {
+            let mut nearest_data = NearestData::new(None, None, None, dist_sq);
+            self.find_nearest_dfs(node_index, proj, &mut nearest_data);
+            if nearest_data.get_elem_index().is_some() {
+                Some(nearest_data)
+            } else {
+                None
+            }
+        }
+    }
+
+    pub fn find_nearest(&self, co: glm::DVec3, dist_sq: f64) -> Option<NearestData<T>> {
+        let root_index = self.nodes[self.totleaf];
+        self.node_array.get(root_index.0)?;
+
+        let mut proj: [f64; 13] = [0.0; 13];
+        (self.start_axis..self.stop_axis).for_each(|axis_iter| {
+            proj[axis_iter as usize] = glm::dot(&co, &BVHTREE_KDOP_AXES[axis_iter as usize]);
+        });
+
+        self.find_nearest_dfs_begin(root_index, dist_sq, &proj)
     }
 
     #[allow(clippy::too_many_arguments)]
