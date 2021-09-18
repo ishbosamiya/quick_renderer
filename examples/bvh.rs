@@ -35,6 +35,8 @@ struct Config {
     should_cast_ray: bool,
     bvh_tree_type: u8,
     _bvh_axis: u8,
+    bvh_nearest_point_dist: f64,
+    bvh_nearest_point_from: glm::DVec3,
     bvh_color: glm::DVec4,
     bvh_ray_color: glm::DVec4,
     bvh_ray_intersection: Vec<(glm::DVec3, RayHitData<FaceIndex>)>,
@@ -49,6 +51,8 @@ impl Default for Config {
             should_cast_ray: false,
             bvh_tree_type: 4,
             _bvh_axis: 8,
+            bvh_nearest_point_dist: 10.0,
+            bvh_nearest_point_from: glm::vec3(2.0, 0.0, 0.0),
             bvh_color: glm::vec4(0.9, 0.5, 0.2, 1.0),
             bvh_ray_color: glm::vec4(0.2, 0.5, 0.9, 1.0),
             bvh_ray_intersection: Vec::new(),
@@ -238,16 +242,46 @@ fn main() {
         ))
         .unwrap();
 
-        config
-            .bvh
-            .as_ref()
-            .unwrap()
-            .draw(&mut BVHDrawData::new(
+        {
+            draw_sphere_at(
+                &config.bvh_nearest_point_from,
+                0.02,
+                glm::vec4(1.0, 0.2, 0.5, 1.0),
                 &mut imm,
-                config.bvh_draw_level,
-                config.bvh_color,
-            ))
-            .unwrap();
+            );
+        }
+
+        let bvh = config.bvh.as_ref().unwrap();
+
+        bvh.draw(&mut BVHDrawData::new(
+            &mut imm,
+            config.bvh_draw_level,
+            config.bvh_color,
+        ))
+        .unwrap();
+
+        let op_bvh_nearest_point_data = bvh.find_nearest(
+            config.bvh_nearest_point_from,
+            config.bvh_nearest_point_dist * config.bvh_nearest_point_dist,
+        );
+
+        if let Some(bvh_nearest_point_data) = &op_bvh_nearest_point_data {
+            draw_sphere_at(
+                &bvh_nearest_point_data.get_co().unwrap(),
+                0.02,
+                glm::vec4(1.0, 0.2, 0.5, 1.0),
+                &mut imm,
+            );
+
+            draw_lines(
+                &[
+                    bvh_nearest_point_data.get_co().unwrap(),
+                    config.bvh_nearest_point_from,
+                ],
+                glm::vec4(1.0, 0.2, 0.5, 1.0),
+                &mut imm,
+            );
+        }
 
         if config.should_cast_ray {
             let ray_direction = camera.get_raycast_direction(
@@ -337,6 +371,20 @@ fn main() {
                 gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
             }
 
+            if let Some(bvh_nearest_point_data) = &op_bvh_nearest_point_data {
+                let radius = glm::distance(
+                    &bvh_nearest_point_data.get_co().unwrap(),
+                    &config.bvh_nearest_point_from,
+                );
+
+                draw_sphere_at(
+                    &config.bvh_nearest_point_from,
+                    radius,
+                    glm::vec4(1.0, 0.2, 0.5, 0.2),
+                    &mut imm,
+                );
+            }
+
             infinite_grid
                 .draw(&mut InfiniteGridDrawData::new(
                     projection_matrix,
@@ -364,6 +412,21 @@ fn main() {
                 //         .text("BVH Axis")
                 //         .clamp_to_range(true),
                 // );
+                ui.add(
+                    egui::Slider::new(&mut config.bvh_nearest_point_dist, 0.0..=40.0)
+                        .text("Nearest Point Distance"),
+                );
+                ui.separator();
+                ui.add(
+                    egui::Slider::new(&mut config.bvh_nearest_point_from[0], -2.0..=2.0).text("X"),
+                );
+                ui.add(
+                    egui::Slider::new(&mut config.bvh_nearest_point_from[1], -2.0..=2.0).text("Y"),
+                );
+                ui.add(
+                    egui::Slider::new(&mut config.bvh_nearest_point_from[2], -2.0..=2.0).text("Z"),
+                );
+                ui.separator();
                 ui.add(
                     egui::Slider::new(&mut config.bvh_draw_level, 0..=15).text("BVH Draw Level"),
                 );
@@ -473,4 +536,67 @@ fn color_edit_button_dvec4(ui: &mut egui::Ui, text: &str, color: &mut glm::DVec4
         ui.label(text);
         color_edit_dvec4(ui, color);
     });
+}
+
+fn draw_sphere_at(pos: &glm::DVec3, radius: f64, color: glm::Vec4, imm: &mut GPUImmediate) {
+    let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
+        .as_ref()
+        .unwrap();
+    smooth_color_3d_shader.use_shader();
+    smooth_color_3d_shader.set_mat4(
+        "model\0",
+        &glm::convert(glm::scale(
+            &glm::translate(&glm::identity(), pos),
+            &glm::vec3(radius, radius, radius),
+        )),
+    );
+
+    let ico_sphere = mesh::builtins::get_ico_sphere_subd_01();
+
+    ico_sphere
+        .draw(&mut MeshDrawData::new(
+            imm,
+            mesh::MeshUseShader::SmoothColor3D,
+            Some(color),
+        ))
+        .unwrap();
+}
+
+fn draw_lines(positions: &[glm::DVec3], color: glm::Vec4, imm: &mut GPUImmediate) {
+    assert_ne!(positions.len(), 0);
+    assert!(positions.len() % 2 == 0);
+    let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
+        .as_ref()
+        .unwrap();
+
+    smooth_color_3d_shader.use_shader();
+    smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
+
+    let format = imm.get_cleared_vertex_format();
+    let pos_attr = format.add_attribute(
+        "in_pos\0".to_string(),
+        GPUVertCompType::F32,
+        3,
+        GPUVertFetchMode::Float,
+    );
+    let color_attr = format.add_attribute(
+        "in_color\0".to_string(),
+        GPUVertCompType::F32,
+        4,
+        GPUVertFetchMode::Float,
+    );
+
+    imm.begin_at_most(
+        GPUPrimType::Lines,
+        positions.len() * 2,
+        smooth_color_3d_shader,
+    );
+
+    positions.iter().for_each(|pos| {
+        let pos: glm::Vec3 = glm::convert(*pos);
+        imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+        imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+    });
+
+    imm.end();
 }
