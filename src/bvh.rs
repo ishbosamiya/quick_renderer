@@ -1216,19 +1216,30 @@ where
         }
     }
 
-    fn find_nearest_dfs(
+    fn find_nearest_dfs<F>(
         &self,
         node_index: BVHNodeIndex,
+        co: &glm::DVec3,
         proj: &[f64; 13],
+        callback: &Option<F>,
         r_nearest_data: &mut NearestData<T>,
-    ) {
+    ) where
+        F: Fn(T, &glm::DVec3, &mut NearestData<T>),
+    {
         let node = self.node_array.get(node_index.0).unwrap();
         let proj_v3 = glm::vec3(proj[0], proj[1], proj[2]);
 
         if node.totnode == 0 {
-            let nearest = node.cal_nearest_point_squared(&proj_v3);
-            let dist_sq = glm::distance2(&proj_v3, &nearest);
-            r_nearest_data.set_info(node.elem_index, Some(nearest), None, dist_sq);
+            match callback {
+                Some(callback) => {
+                    callback(node.elem_index.unwrap(), co, r_nearest_data);
+                }
+                None => {
+                    let nearest = node.cal_nearest_point_squared(&proj_v3);
+                    let dist_sq = glm::distance2(&proj_v3, &nearest);
+                    r_nearest_data.set_info(node.elem_index, Some(nearest), None, dist_sq);
+                }
+            }
         } else {
             // Better heuristic to pick the closest node to dive on
             if proj[node.main_axis as usize]
@@ -1244,7 +1255,13 @@ where
                         return;
                     }
 
-                    self.find_nearest_dfs(node.children[i as usize], proj, r_nearest_data);
+                    self.find_nearest_dfs(
+                        node.children[i as usize],
+                        co,
+                        proj,
+                        callback,
+                        r_nearest_data,
+                    );
                 });
             } else {
                 (0..node.totnode).for_each(|i| {
@@ -1257,18 +1274,29 @@ where
                         return;
                     }
 
-                    self.find_nearest_dfs(node.children[i as usize], proj, r_nearest_data);
+                    self.find_nearest_dfs(
+                        node.children[i as usize],
+                        co,
+                        proj,
+                        callback,
+                        r_nearest_data,
+                    );
                 });
             }
         }
     }
 
-    fn find_nearest_dfs_begin(
+    fn find_nearest_dfs_begin<F>(
         &self,
         node_index: BVHNodeIndex,
         dist_sq: f64,
+        co: &glm::DVec3,
         proj: &[f64; 13],
-    ) -> Option<NearestData<T>> {
+        callback: &Option<F>,
+    ) -> Option<NearestData<T>>
+    where
+        F: Fn(T, &glm::DVec3, &mut NearestData<T>),
+    {
         let node = self.node_array.get(node_index.0).unwrap();
         let proj_v3 = glm::vec3(proj[0], proj[1], proj[2]);
         let nearest = node.cal_nearest_point_squared(&proj_v3);
@@ -1276,7 +1304,7 @@ where
             None
         } else {
             let mut nearest_data = NearestData::new(None, None, None, dist_sq);
-            self.find_nearest_dfs(node_index, proj, &mut nearest_data);
+            self.find_nearest_dfs(node_index, co, proj, callback, &mut nearest_data);
             if nearest_data.get_elem_index().is_some() {
                 Some(nearest_data)
             } else {
@@ -1285,7 +1313,23 @@ where
         }
     }
 
-    pub fn find_nearest(&self, co: glm::DVec3, dist_sq: f64) -> Option<NearestData<T>> {
+    /// Finds the nearest point to the given point `co` that is within
+    /// the squared distance `dist_sq` with an optional callback. If
+    /// no callback is given, the nearest point on the BVH is returned
+    /// through `NearestData`.
+    ///
+    /// `callback` takes the arguments: element index stored in the
+    /// nearest node, `co`, the current nearest data that is
+    /// stored. It must update the nearest data (if needed).
+    pub fn find_nearest<F>(
+        &self,
+        co: glm::DVec3,
+        dist_sq: f64,
+        callback: &Option<F>,
+    ) -> Option<NearestData<T>>
+    where
+        F: Fn(T, &glm::DVec3, &mut NearestData<T>),
+    {
         let root_index = self.nodes[self.totleaf];
         self.node_array.get(root_index.0)?;
 
@@ -1294,7 +1338,12 @@ where
             proj[axis_iter as usize] = glm::dot(&co, &BVHTREE_KDOP_AXES[axis_iter as usize]);
         });
 
-        self.find_nearest_dfs_begin(root_index, dist_sq, &proj)
+        self.find_nearest_dfs_begin(root_index, dist_sq, &co, &proj, callback)
+    }
+
+    /// Easy call when no callback needed for `find_nearest()`.
+    pub fn find_nearest_no_callback(&self, co: glm::DVec3, dist_sq: f64) -> Option<NearestData<T>> {
+        self.find_nearest::<fn(T, &glm::DVec3, &mut NearestData<T>)>(co, dist_sq, &None)
     }
 
     #[allow(clippy::too_many_arguments)]
