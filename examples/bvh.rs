@@ -5,8 +5,10 @@ use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
 
 use quick_renderer::bvh;
+use quick_renderer::bvh::nearest_point_to_tri;
 use quick_renderer::bvh::BVHDrawData;
 use quick_renderer::bvh::BVHTree;
+use quick_renderer::bvh::NearestData;
 use quick_renderer::bvh::RayHitData;
 use quick_renderer::camera::WindowCamera;
 use quick_renderer::drawable::Drawable;
@@ -37,6 +39,7 @@ struct Config {
     _bvh_axis: u8,
     bvh_nearest_point_dist: f64,
     bvh_nearest_point_from: glm::DVec3,
+    bvh_nearest_point_use_callback: bool,
     bvh_color: glm::DVec4,
     bvh_ray_color: glm::DVec4,
     bvh_ray_intersection: Vec<(glm::DVec3, RayHitData<FaceIndex>)>,
@@ -53,6 +56,7 @@ impl Default for Config {
             _bvh_axis: 8,
             bvh_nearest_point_dist: 10.0,
             bvh_nearest_point_from: glm::vec3(2.0, 0.0, 0.0),
+            bvh_nearest_point_use_callback: true,
             bvh_color: glm::vec4(0.9, 0.5, 0.2, 1.0),
             bvh_ray_color: glm::vec4(0.2, 0.5, 0.9, 1.0),
             bvh_ray_intersection: Vec::new(),
@@ -131,7 +135,7 @@ fn main() {
         .insert(TextStyle::Small, (FontFamily::Proportional, 15.0));
     egui.get_egui_ctx().set_fonts(fonts);
 
-    let mesh = mesh::builtins::get_monkey_subd_01();
+    let mesh = mesh::builtins::get_monkey_subd_01_triangulated();
 
     let mut camera = WindowCamera::new(
         glm::vec3(0.0, 0.0, 3.0),
@@ -171,6 +175,43 @@ fn main() {
 
     let mut config = Config::default();
     config.build_bvh(mesh, 0.1);
+
+    let nearest_point_to_face =
+        |face_index: FaceIndex, co: &glm::DVec3, r_nearest_data: &mut NearestData<FaceIndex>| {
+            let face = mesh.get_face(face_index).unwrap();
+            assert_eq!(face.get_verts().len(), 3);
+            let n1 = mesh
+                .get_node(
+                    mesh.get_vert(face.get_verts()[0])
+                        .unwrap()
+                        .get_node()
+                        .unwrap(),
+                )
+                .unwrap();
+            let n2 = mesh
+                .get_node(
+                    mesh.get_vert(face.get_verts()[1])
+                        .unwrap()
+                        .get_node()
+                        .unwrap(),
+                )
+                .unwrap();
+            let n3 = mesh
+                .get_node(
+                    mesh.get_vert(face.get_verts()[2])
+                        .unwrap()
+                        .get_node()
+                        .unwrap(),
+                )
+                .unwrap();
+            let nearest = nearest_point_to_tri(co, [&n1.pos, &n2.pos, &n3.pos]);
+
+            let dist_sq = glm::distance2(&nearest, co);
+
+            if dist_sq < r_nearest_data.get_dist_sq() {
+                r_nearest_data.set_info(Some(face_index), Some(nearest), None, dist_sq);
+            }
+        };
 
     while !window.should_close() {
         glfw.poll_events();
@@ -260,10 +301,18 @@ fn main() {
         ))
         .unwrap();
 
-        let op_bvh_nearest_point_data = bvh.find_nearest(
-            config.bvh_nearest_point_from,
-            config.bvh_nearest_point_dist * config.bvh_nearest_point_dist,
-        );
+        let op_bvh_nearest_point_data = if config.bvh_nearest_point_use_callback {
+            bvh.find_nearest(
+                config.bvh_nearest_point_from,
+                config.bvh_nearest_point_dist * config.bvh_nearest_point_dist,
+                &Some(nearest_point_to_face),
+            )
+        } else {
+            bvh.find_nearest_no_callback(
+                config.bvh_nearest_point_from,
+                config.bvh_nearest_point_dist * config.bvh_nearest_point_dist,
+            )
+        };
 
         if let Some(bvh_nearest_point_data) = &op_bvh_nearest_point_data {
             draw_sphere_at(
@@ -429,6 +478,10 @@ fn main() {
                 ui.separator();
                 ui.add(
                     egui::Slider::new(&mut config.bvh_draw_level, 0..=15).text("BVH Draw Level"),
+                );
+                ui.checkbox(
+                    &mut config.bvh_nearest_point_use_callback,
+                    "Use Nearest Point Callback",
                 );
                 color_edit_button_dvec4(ui, "BVH Color", &mut config.bvh_color);
                 color_edit_button_dvec4(ui, "BVH Ray Color", &mut config.bvh_ray_color);
