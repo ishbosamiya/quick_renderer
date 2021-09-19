@@ -1531,6 +1531,80 @@ where
     }
 }
 
+/// Find the nearest point on the triangle given by `points` to the
+/// point `co`.
+///
+/// From Blender's math_geom.c `closest_on_tri_to_point_v3`.
+pub fn nearest_point_to_tri(co: &glm::DVec3, points: [&glm::DVec3; 3]) -> glm::DVec3 {
+    let p = co;
+    let v1 = points[0];
+    let v2 = points[1];
+    let v3 = points[2];
+
+    /* Check if P in vertex region outside A */
+    let ab = v2 - v1;
+    let ac = v3 - v1;
+    let ap = p - v1;
+    let d1 = glm::dot(&ab, &ap);
+    let d2 = glm::dot(&ac, &ap);
+    if d1 <= 0.0 && d2 <= 0.0 {
+        /* barycentric coordinates (1,0,0) */
+        return *v1;
+    }
+
+    /* Check if P in vertex region outside B */
+    let bp = p - v2;
+    let d3 = glm::dot(&ab, &bp);
+    let d4 = glm::dot(&ac, &bp);
+    if d3 >= 0.0 && d4 <= d3 {
+        /* barycentric coordinates (0,1,0) */
+        return *v2;
+    }
+
+    /* Check if P in edge region of AB, if so return projection of P onto AB */
+    let vc = d1 * d4 - d3 * d2;
+    if vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0 {
+        let v = d1 / (d1 - d3);
+        /* barycentric coordinates (1-v,v,0) */
+        return v1 + ab * v;
+    }
+
+    /* Check if P in vertex region outside C */
+    let cp = p - v3;
+    let d5 = glm::dot(&ab, &cp);
+    let d6 = glm::dot(&ac, &cp);
+    if d6 >= 0.0 && d5 <= d6 {
+        /* barycentric coordinates (0,0,1) */
+        return *v3;
+    }
+
+    /* Check if P in edge region of AC, if so return projection of P onto AC */
+    let vb = d5 * d2 - d1 * d6;
+    if vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0 {
+        let w = d2 / (d2 - d6);
+        /* barycentric coordinates (1-w,0,w) */
+        return v1 + ac * w;
+    }
+
+    /* Check if P in edge region of BC, if so return projection of P onto BC */
+    let va = d3 * d6 - d5 * d4;
+    if va <= 0.0 && (d4 - d3) >= 0.0 && (d5 - d6) >= 0.0 {
+        let w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+        /* barycentric coordinates (0,1-w,w) */
+        return ((v3 - v2) * w) + v2;
+    }
+
+    /* P inside face region. Compute Q through its barycentric coordinates (u,v,w) */
+    let denom = 1.0 / (va + vb + vc);
+    let v = vb * denom;
+    let w = vc * denom;
+
+    /* = u*a + v*b + w*c, u = va * denom = 1.0f - v - w */
+    /* ac * w */
+    let ac = ac * w;
+    (v1 + ab * v) + ac
+}
+
 trait ArenaFunctions {
     type Output;
 
