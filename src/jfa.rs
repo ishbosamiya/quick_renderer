@@ -42,7 +42,7 @@ pub fn jfa(
         jfa_initialization_shader.set_int("image\0", 31);
         image.activate(31);
 
-        gpu_utils::render_quad(imm, jfa_initialization_shader);
+        gpu_utils::render_quad_with_uv(imm, jfa_initialization_shader);
     }
 
     // JFA steps
@@ -70,7 +70,7 @@ pub fn jfa(
         jfa_step_shader.set_float("step_size\0", step_size);
         render_from.activate(31);
 
-        gpu_utils::render_quad(imm, jfa_step_shader);
+        gpu_utils::render_quad_with_uv(imm, jfa_step_shader);
     });
 
     unsafe {
@@ -124,7 +124,7 @@ pub fn convert_to_distance(
     jfa_convert_to_distance_shader.set_int("image\0", 31);
     jfa_texture.activate(31);
 
-    gpu_utils::render_quad(imm, jfa_convert_to_distance_shader);
+    gpu_utils::render_quad_with_uv(imm, jfa_convert_to_distance_shader);
 
     FrameBuffer::activiate_default();
     unsafe {

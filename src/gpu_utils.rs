@@ -31,7 +31,7 @@ pub fn get_plane_vert_list_f64() -> &'static Vec<(glm::DVec3, glm::DVec2)> {
     &PLANE_VERT_LIST_F64
 }
 
-pub fn render_quad(imm: &mut GPUImmediate, shader: &Shader) {
+pub fn render_quad_with_uv(imm: &mut GPUImmediate, shader: &Shader) {
     let format = imm.get_cleared_vertex_format();
     let pos_attr = format.add_attribute(
         "in_pos\0".to_string(),
@@ -50,6 +50,24 @@ pub fn render_quad(imm: &mut GPUImmediate, shader: &Shader) {
 
     get_plane_vert_list_f32().iter().for_each(|(pos, uv)| {
         imm.attr_2f(uv_attr, uv[0], uv[1]);
+        imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+    });
+
+    imm.end();
+}
+
+pub fn render_quad(imm: &mut GPUImmediate, shader: &Shader) {
+    let format = imm.get_cleared_vertex_format();
+    let pos_attr = format.add_attribute(
+        "in_pos\0".to_string(),
+        GPUVertCompType::F32,
+        3,
+        GPUVertFetchMode::Float,
+    );
+
+    imm.begin(GPUPrimType::Tris, 6, shader);
+
+    get_plane_vert_list_f32().iter().for_each(|(pos, _uv)| {
         imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
     });
 
