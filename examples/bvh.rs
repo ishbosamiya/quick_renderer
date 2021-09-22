@@ -306,6 +306,7 @@ fn main() {
                 config.bvh_nearest_point_from,
                 0.02,
                 glm::vec4(1.0, 0.2, 0.5, 1.0),
+                glm::vec4(0.5, 0.2, 1.0, 1.0),
                 smooth_sphere_shader,
                 &mut imm,
             );
@@ -338,6 +339,7 @@ fn main() {
                 bvh_nearest_point_data.get_co().unwrap(),
                 0.02,
                 glm::vec4(1.0, 0.2, 0.5, 1.0),
+                glm::vec4(0.5, 0.2, 1.0, 1.0),
                 smooth_sphere_shader,
                 &mut imm,
             );
@@ -450,6 +452,7 @@ fn main() {
                     config.bvh_nearest_point_from,
                     radius,
                     glm::vec4(1.0, 0.2, 0.5, 0.2),
+                    glm::vec4(0.5, 0.2, 1.0, 0.2),
                     smooth_sphere_shader,
                     &mut imm,
                 );
@@ -615,12 +618,14 @@ fn color_edit_button_dvec4(ui: &mut egui::Ui, text: &str, color: &mut glm::DVec4
 fn draw_sphere_at(
     pos: glm::DVec3,
     radius: f64,
-    color: glm::Vec4,
+    outside_color: glm::Vec4,
+    inside_color: glm::Vec4,
     smooth_sphere_shader: &shader::Shader,
     imm: &mut GPUImmediate,
 ) {
     smooth_sphere_shader.use_shader();
-    smooth_sphere_shader.set_vec4("color\0", &color);
+    smooth_sphere_shader.set_vec4("outside_color\0", &outside_color);
+    smooth_sphere_shader.set_vec4("inside_color\0", &inside_color);
     smooth_sphere_shader.set_vec3("sphere_center\0", &glm::convert(pos));
     smooth_sphere_shader.set_float("sphere_radius\0", radius as _);
     let format = imm.get_cleared_vertex_format();

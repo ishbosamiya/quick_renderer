@@ -2,7 +2,8 @@
 
 uniform vec3 sphere_center;
 uniform float sphere_radius;
-uniform vec4 color;
+uniform vec4 outside_color;
+uniform vec4 inside_color;
 
 in vec4 frag_near;
 in vec4 frag_far;
@@ -72,10 +73,10 @@ void main()
 
   if (t > 0.0) {
     if (inside_sphere) {
-      fragColor = vec4(0.0, 0.0, 1.0, 0.2);
+      fragColor = inside_color;
     }
     else {
-      fragColor = color;
+      fragColor = outside_color;
     }
     gl_FragDepth = compute_depth(ray_origin + t * ray_direction);
   }
