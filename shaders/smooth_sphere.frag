@@ -12,6 +12,8 @@ in mat4 frag_view;
 
 out vec4 fragColor;
 
+// reference:
+// https://iquilezles.org/www/articles/spherefunctions/spherefunctions.htm
 float intersect_sphere(in vec3 sphere_center,
                        in float sphere_radius,
                        in vec3 ray_origin,
@@ -36,11 +38,15 @@ float intersect_sphere(in vec3 sphere_center,
   return t;
 }
 
+// reference:
+// https://encreative.blogspot.com/2019/05/computing-ray-origin-and-direction-from.html
 vec3 get_ray_origin()
 {
   return frag_near.xyz / frag_near.w;
 }
 
+// reference:
+// https://encreative.blogspot.com/2019/05/computing-ray-origin-and-direction-from.html
 vec3 get_ray_direction(in vec3 ray_origin)
 {
   return normalize((frag_far.xyz / frag_far.w) - ray_origin);
