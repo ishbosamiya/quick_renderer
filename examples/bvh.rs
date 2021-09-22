@@ -148,35 +148,10 @@ fn main() {
 
     let mut imm = GPUImmediate::new();
 
+    shader::builtins::display_uniform_and_attribute_info();
     let directional_light_shader = shader::builtins::get_directional_light_shader()
         .as_ref()
         .unwrap();
-
-    let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
-        .as_ref()
-        .unwrap();
-
-    let smooth_sphere_shader = shader::builtins::get_smooth_sphere_shader()
-        .as_ref()
-        .unwrap();
-
-    println!(
-        "directional_light: uniforms: {:?} attributes: {:?}",
-        directional_light_shader.get_uniforms(),
-        directional_light_shader.get_attributes(),
-    );
-
-    println!(
-        "smooth_color_3d: uniforms: {:?} attributes: {:?}",
-        smooth_color_3d_shader.get_uniforms(),
-        smooth_color_3d_shader.get_attributes(),
-    );
-
-    println!(
-        "smooth_sphere: uniforms: {:?} attributes: {:?}",
-        smooth_sphere_shader.get_uniforms(),
-        smooth_sphere_shader.get_attributes(),
-    );
 
     let mut last_cursor = window.get_cursor_pos();
 
@@ -250,42 +225,8 @@ fn main() {
             window_height.try_into().unwrap(),
         );
 
-        let projection_matrix =
-            &glm::convert(camera.get_projection_matrix(window_width, window_height));
-        let view_matrix = &glm::convert(camera.get_view_matrix());
-
         // Shader stuff
-        {
-            {
-                directional_light_shader.use_shader();
-                directional_light_shader.set_mat4("projection\0", projection_matrix);
-                directional_light_shader.set_mat4("view\0", view_matrix);
-                directional_light_shader.set_mat4("model\0", &glm::identity());
-                directional_light_shader
-                    .set_vec3("viewPos\0", &glm::convert(camera.get_position()));
-                directional_light_shader.set_vec3("material.color\0", &glm::vec3(0.3, 0.2, 0.7));
-                directional_light_shader.set_vec3("material.specular\0", &glm::vec3(0.3, 0.3, 0.3));
-                directional_light_shader.set_float("material.shininess\0", 4.0);
-                directional_light_shader
-                    .set_vec3("light.direction\0", &glm::vec3(-0.7, -1.0, -0.7));
-                directional_light_shader.set_vec3("light.ambient\0", &glm::vec3(0.3, 0.3, 0.3));
-                directional_light_shader.set_vec3("light.diffuse\0", &glm::vec3(1.0, 1.0, 1.0));
-                directional_light_shader.set_vec3("light.specular\0", &glm::vec3(1.0, 1.0, 1.0));
-            }
-
-            {
-                smooth_color_3d_shader.use_shader();
-                smooth_color_3d_shader.set_mat4("projection\0", projection_matrix);
-                smooth_color_3d_shader.set_mat4("view\0", view_matrix);
-                smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
-            }
-
-            {
-                smooth_sphere_shader.use_shader();
-                smooth_sphere_shader.set_mat4("projection\0", projection_matrix);
-                smooth_sphere_shader.set_mat4("view\0", view_matrix);
-            }
-        }
+        shader::builtins::setup_shaders(&camera, window_width, window_height);
 
         unsafe {
             gl::Disable(gl::BLEND);
@@ -453,11 +394,7 @@ fn main() {
             }
 
             infinite_grid
-                .draw(&mut InfiniteGridDrawData::new(
-                    projection_matrix,
-                    view_matrix,
-                    &mut imm,
-                ))
+                .draw(&mut InfiniteGridDrawData::new(&mut imm))
                 .unwrap();
         }
 

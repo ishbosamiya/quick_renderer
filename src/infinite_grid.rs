@@ -44,18 +44,12 @@ impl Default for InfiniteGrid {
 }
 
 pub struct InfiniteGridDrawData<'a> {
-    projection: &'a glm::Mat4,
-    view: &'a glm::Mat4,
     imm: &'a mut GPUImmediate,
 }
 
 impl<'a> InfiniteGridDrawData<'a> {
-    pub fn new(projection: &'a glm::Mat4, view: &'a glm::Mat4, imm: &'a mut GPUImmediate) -> Self {
-        Self {
-            projection,
-            view,
-            imm,
-        }
+    pub fn new(imm: &'a mut GPUImmediate) -> Self {
+        Self { imm }
     }
 }
 
@@ -73,8 +67,6 @@ impl Drawable<InfiniteGridDrawData<'_>, ()> for InfiniteGrid {
             .unwrap();
 
         infinite_grid_shader.use_shader();
-        infinite_grid_shader.set_mat4("projection\0", extra_data.projection);
-        infinite_grid_shader.set_mat4("view\0", extra_data.view);
 
         let format = imm.get_cleared_vertex_format();
         let pos_attr = format.add_attribute(
