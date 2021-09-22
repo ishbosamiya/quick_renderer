@@ -223,7 +223,7 @@ fn main() {
                 ),
             );
             final_texture.activate(31);
-            gpu_utils::render_quad_with_uv(&mut imm, flat_texture_shader);
+            gpu_utils::draw_screen_quad_with_uv(&mut imm, flat_texture_shader);
         }
 
         // Keep meshes that have shaders that need alpha channel
