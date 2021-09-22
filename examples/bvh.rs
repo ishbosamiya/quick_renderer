@@ -301,11 +301,10 @@ fn main() {
         .unwrap();
 
         {
-            gpu_utils::draw_smooth_sphere_at(
-                config.bvh_nearest_point_from,
+            gpu_utils::draw_sphere_at(
+                &config.bvh_nearest_point_from,
                 0.02,
                 glm::vec4(1.0, 0.2, 0.5, 1.0),
-                glm::vec4(0.5, 0.2, 1.0, 1.0),
                 &mut imm,
             );
         }
@@ -333,11 +332,10 @@ fn main() {
         };
 
         if let Some(bvh_nearest_point_data) = &op_bvh_nearest_point_data {
-            gpu_utils::draw_smooth_sphere_at(
-                bvh_nearest_point_data.get_co().unwrap(),
+            gpu_utils::draw_sphere_at(
+                &bvh_nearest_point_data.get_co().unwrap(),
                 0.02,
                 glm::vec4(1.0, 0.2, 0.5, 1.0),
-                glm::vec4(0.5, 0.2, 1.0, 1.0),
                 &mut imm,
             );
 
