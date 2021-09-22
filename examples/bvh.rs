@@ -21,6 +21,7 @@ use quick_renderer::gpu_immediate::GPUImmediate;
 use quick_renderer::gpu_immediate::GPUPrimType;
 use quick_renderer::gpu_immediate::GPUVertCompType;
 use quick_renderer::gpu_immediate::GPUVertFetchMode;
+use quick_renderer::gpu_utils;
 use quick_renderer::infinite_grid::InfiniteGrid;
 use quick_renderer::infinite_grid::InfiniteGridDrawData;
 use quick_renderer::mesh;
@@ -155,11 +156,9 @@ fn main() {
         .as_ref()
         .unwrap();
 
-    let smooth_sphere_shader = &shader::Shader::from_strings(
-        include_str!("smooth_sphere.vert"),
-        include_str!("smooth_sphere.frag"),
-    )
-    .unwrap();
+    let smooth_sphere_shader = shader::builtins::get_smooth_sphere_shader()
+        .as_ref()
+        .unwrap();
 
     println!(
         "directional_light: uniforms: {:?} attributes: {:?}",
@@ -302,12 +301,11 @@ fn main() {
         .unwrap();
 
         {
-            draw_sphere_at(
+            gpu_utils::draw_smooth_sphere_at(
                 config.bvh_nearest_point_from,
                 0.02,
                 glm::vec4(1.0, 0.2, 0.5, 1.0),
                 glm::vec4(0.5, 0.2, 1.0, 1.0),
-                smooth_sphere_shader,
                 &mut imm,
             );
         }
@@ -335,12 +333,11 @@ fn main() {
         };
 
         if let Some(bvh_nearest_point_data) = &op_bvh_nearest_point_data {
-            draw_sphere_at(
+            gpu_utils::draw_smooth_sphere_at(
                 bvh_nearest_point_data.get_co().unwrap(),
                 0.02,
                 glm::vec4(1.0, 0.2, 0.5, 1.0),
                 glm::vec4(0.5, 0.2, 1.0, 1.0),
-                smooth_sphere_shader,
                 &mut imm,
             );
 
@@ -448,12 +445,11 @@ fn main() {
                     &config.bvh_nearest_point_from,
                 );
 
-                draw_sphere_at(
+                gpu_utils::draw_smooth_sphere_at(
                     config.bvh_nearest_point_from,
                     radius,
                     glm::vec4(1.0, 0.2, 0.5, 0.2),
                     glm::vec4(0.5, 0.2, 1.0, 0.2),
-                    smooth_sphere_shader,
                     &mut imm,
                 );
             }
@@ -613,44 +609,6 @@ fn color_edit_button_dvec4(ui: &mut egui::Ui, text: &str, color: &mut glm::DVec4
         ui.label(text);
         color_edit_dvec4(ui, color);
     });
-}
-
-fn draw_sphere_at(
-    pos: glm::DVec3,
-    radius: f64,
-    outside_color: glm::Vec4,
-    inside_color: glm::Vec4,
-    smooth_sphere_shader: &shader::Shader,
-    imm: &mut GPUImmediate,
-) {
-    smooth_sphere_shader.use_shader();
-    smooth_sphere_shader.set_vec4("outside_color\0", &outside_color);
-    smooth_sphere_shader.set_vec4("inside_color\0", &inside_color);
-    smooth_sphere_shader.set_vec3("sphere_center\0", &glm::convert(pos));
-    smooth_sphere_shader.set_float("sphere_radius\0", radius as _);
-    let format = imm.get_cleared_vertex_format();
-    let pos_attr = format.add_attribute(
-        "in_pos\0".to_string(),
-        GPUVertCompType::F32,
-        3,
-        GPUVertFetchMode::Float,
-    );
-
-    imm.begin(GPUPrimType::Tris, 6, smooth_sphere_shader);
-
-    let plane_vert_positions = vec![
-        glm::vec3(1.0, 1.0, 0.0),
-        glm::vec3(-1.0, -1.0, 0.0),
-        glm::vec3(-1.0, 1.0, 0.0),
-        glm::vec3(-1.0, -1.0, 0.0),
-        glm::vec3(1.0, 1.0, 0.0),
-        glm::vec3(1.0, -1.0, 0.0),
-    ];
-    plane_vert_positions.iter().for_each(|pos| {
-        imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
-    });
-
-    imm.end();
 }
 
 fn draw_lines(positions: &[glm::DVec3], color: glm::Vec4, imm: &mut GPUImmediate) {

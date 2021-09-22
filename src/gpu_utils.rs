@@ -1,8 +1,8 @@
 use lazy_static::lazy_static;
 
-use crate::glm;
 use crate::gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode};
 use crate::shader::Shader;
+use crate::{glm, shader};
 
 lazy_static! {
     static ref PLANE_VERT_LIST_F32: Vec<(glm::Vec3, glm::Vec2)> = vec![
@@ -72,4 +72,29 @@ pub fn render_quad(imm: &mut GPUImmediate, shader: &Shader) {
     });
 
     imm.end();
+}
+
+/// Draws a smooth sphere at the given position and radius. This is a
+/// fairly expensive draw call since it traces rays from all the
+/// fragments of the render target to test if it has intersected with
+/// the sphere to set the fragment's color depending on whether inside
+/// or outside of the sphere is hit.
+pub fn draw_smooth_sphere_at(
+    pos: glm::DVec3,
+    radius: f64,
+    outside_color: glm::Vec4,
+    inside_color: glm::Vec4,
+    imm: &mut GPUImmediate,
+) {
+    let smooth_sphere_shader = shader::builtins::get_smooth_sphere_shader()
+        .as_ref()
+        .unwrap();
+
+    smooth_sphere_shader.use_shader();
+    smooth_sphere_shader.set_vec4("outside_color\0", &outside_color);
+    smooth_sphere_shader.set_vec4("inside_color\0", &inside_color);
+    smooth_sphere_shader.set_vec3("sphere_center\0", &glm::convert(pos));
+    smooth_sphere_shader.set_float("sphere_radius\0", radius as _);
+
+    render_quad(imm, smooth_sphere_shader);
 }

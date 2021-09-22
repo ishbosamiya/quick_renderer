@@ -78,3 +78,9 @@ load_builtin_shader_easy!(
     "../../shaders/jfa_convert_to_distance.vert";
     "../../shaders/jfa_convert_to_distance.frag"
 );
+
+load_builtin_shader_easy!(
+    smooth_sphere;
+    "../../shaders/smooth_sphere.vert";
+    "../../shaders/smooth_sphere.frag"
+);
