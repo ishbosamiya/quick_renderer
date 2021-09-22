@@ -155,6 +155,12 @@ fn main() {
         .as_ref()
         .unwrap();
 
+    let smooth_sphere_shader = &shader::Shader::from_strings(
+        include_str!("smooth_sphere.vert"),
+        include_str!("smooth_sphere.frag"),
+    )
+    .unwrap();
+
     println!(
         "directional_light: uniforms: {:?} attributes: {:?}",
         directional_light_shader.get_uniforms(),
@@ -165,6 +171,12 @@ fn main() {
         "smooth_color_3d: uniforms: {:?} attributes: {:?}",
         smooth_color_3d_shader.get_uniforms(),
         smooth_color_3d_shader.get_attributes(),
+    );
+
+    println!(
+        "smooth_sphere: uniforms: {:?} attributes: {:?}",
+        smooth_sphere_shader.get_uniforms(),
+        smooth_sphere_shader.get_attributes(),
     );
 
     let mut last_cursor = window.get_cursor_pos();
@@ -268,6 +280,12 @@ fn main() {
                 smooth_color_3d_shader.set_mat4("view\0", view_matrix);
                 smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
             }
+
+            {
+                smooth_sphere_shader.use_shader();
+                smooth_sphere_shader.set_mat4("projection\0", projection_matrix);
+                smooth_sphere_shader.set_mat4("view\0", view_matrix);
+            }
         }
 
         unsafe {
@@ -285,9 +303,10 @@ fn main() {
 
         {
             draw_sphere_at(
-                &config.bvh_nearest_point_from,
+                config.bvh_nearest_point_from,
                 0.02,
                 glm::vec4(1.0, 0.2, 0.5, 1.0),
+                smooth_sphere_shader,
                 &mut imm,
             );
         }
@@ -316,9 +335,10 @@ fn main() {
 
         if let Some(bvh_nearest_point_data) = &op_bvh_nearest_point_data {
             draw_sphere_at(
-                &bvh_nearest_point_data.get_co().unwrap(),
+                bvh_nearest_point_data.get_co().unwrap(),
                 0.02,
                 glm::vec4(1.0, 0.2, 0.5, 1.0),
+                smooth_sphere_shader,
                 &mut imm,
             );
 
@@ -427,9 +447,10 @@ fn main() {
                 );
 
                 draw_sphere_at(
-                    &config.bvh_nearest_point_from,
+                    config.bvh_nearest_point_from,
                     radius,
                     glm::vec4(1.0, 0.2, 0.5, 0.2),
+                    smooth_sphere_shader,
                     &mut imm,
                 );
             }
@@ -591,28 +612,40 @@ fn color_edit_button_dvec4(ui: &mut egui::Ui, text: &str, color: &mut glm::DVec4
     });
 }
 
-fn draw_sphere_at(pos: &glm::DVec3, radius: f64, color: glm::Vec4, imm: &mut GPUImmediate) {
-    let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
-        .as_ref()
-        .unwrap();
-    smooth_color_3d_shader.use_shader();
-    smooth_color_3d_shader.set_mat4(
-        "model\0",
-        &glm::convert(glm::scale(
-            &glm::translate(&glm::identity(), pos),
-            &glm::vec3(radius, radius, radius),
-        )),
+fn draw_sphere_at(
+    pos: glm::DVec3,
+    radius: f64,
+    color: glm::Vec4,
+    smooth_sphere_shader: &shader::Shader,
+    imm: &mut GPUImmediate,
+) {
+    smooth_sphere_shader.use_shader();
+    smooth_sphere_shader.set_vec4("color\0", &color);
+    smooth_sphere_shader.set_vec3("sphere_center\0", &glm::convert(pos));
+    smooth_sphere_shader.set_float("sphere_radius\0", radius as _);
+    let format = imm.get_cleared_vertex_format();
+    let pos_attr = format.add_attribute(
+        "in_pos\0".to_string(),
+        GPUVertCompType::F32,
+        3,
+        GPUVertFetchMode::Float,
     );
 
-    let ico_sphere = mesh::builtins::get_ico_sphere_subd_01();
+    imm.begin(GPUPrimType::Tris, 6, smooth_sphere_shader);
 
-    ico_sphere
-        .draw(&mut MeshDrawData::new(
-            imm,
-            mesh::MeshUseShader::SmoothColor3D,
-            Some(color),
-        ))
-        .unwrap();
+    let plane_vert_positions = vec![
+        glm::vec3(1.0, 1.0, 0.0),
+        glm::vec3(-1.0, -1.0, 0.0),
+        glm::vec3(-1.0, 1.0, 0.0),
+        glm::vec3(-1.0, -1.0, 0.0),
+        glm::vec3(1.0, 1.0, 0.0),
+        glm::vec3(1.0, -1.0, 0.0),
+    ];
+    plane_vert_positions.iter().for_each(|pos| {
+        imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+    });
+
+    imm.end();
 }
 
 fn draw_lines(positions: &[glm::DVec3], color: glm::Vec4, imm: &mut GPUImmediate) {
