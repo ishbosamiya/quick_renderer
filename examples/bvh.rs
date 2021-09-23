@@ -241,14 +241,12 @@ fn main() {
         ))
         .unwrap();
 
-        {
-            gpu_utils::draw_sphere_at(
-                &config.bvh_nearest_point_from,
-                0.02,
-                glm::vec4(1.0, 0.2, 0.5, 1.0),
-                &mut imm,
-            );
-        }
+        gpu_utils::draw_sphere_at(
+            &config.bvh_nearest_point_from,
+            0.02,
+            glm::vec4(1.0, 0.2, 0.5, 1.0),
+            &mut imm,
+        );
 
         let bvh = config.bvh.as_ref().unwrap();
 
@@ -389,6 +387,14 @@ fn main() {
                     radius,
                     glm::vec4(1.0, 0.2, 0.5, 0.2),
                     glm::vec4(0.5, 0.2, 1.0, 0.2),
+                    &mut imm,
+                );
+
+                gpu_utils::draw_color_plane(
+                    &bvh_nearest_point_data.get_co().unwrap(),
+                    &glm::vec3(2.0, 2.0, 2.0),
+                    &(bvh_nearest_point_data.get_co().unwrap() - config.bvh_nearest_point_from),
+                    glm::vec4(0.2, 0.2, 1.0, 0.2),
                     &mut imm,
                 );
             }
