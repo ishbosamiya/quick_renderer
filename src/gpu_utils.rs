@@ -23,6 +23,22 @@ lazy_static! {
         (glm::vec3(1.0, 1.0, 0.0), glm::vec2(1.0, 1.0)),
         (glm::vec3(1.0, -1.0, 0.0), glm::vec2(1.0, 0.0)),
     ];
+    static ref PLANE_1M_VERT_LIST_F32: Vec<(glm::Vec3, glm::Vec2)> = vec![
+        (glm::vec3(-0.5, 0.0, 0.5), glm::vec2(0.0, 1.0)),
+        (glm::vec3(0.5, 0.0, -0.5), glm::vec2(1.0, 0.0)),
+        (glm::vec3(0.5, 0.0, 0.5), glm::vec2(1.0, 1.0)),
+        (glm::vec3(-0.5, 0.0, 0.5), glm::vec2(0.0, 1.0)),
+        (glm::vec3(-0.5, 0.0, -0.5), glm::vec2(0.0, 0.0)),
+        (glm::vec3(0.5, 0.0, -0.5), glm::vec2(1.0, 0.0)),
+    ];
+    static ref PLANE_1M_VERT_LIST_F64: Vec<(glm::DVec3, glm::DVec2)> = vec![
+        (glm::vec3(-0.5, 0.0, 0.5), glm::vec2(0.0, 1.0)),
+        (glm::vec3(0.5, 0.0, -0.5), glm::vec2(1.0, 0.0)),
+        (glm::vec3(0.5, 0.0, 0.5), glm::vec2(1.0, 1.0)),
+        (glm::vec3(-0.5, 0.0, 0.5), glm::vec2(0.0, 1.0)),
+        (glm::vec3(-0.5, 0.0, -0.5), glm::vec2(0.0, 0.0)),
+        (glm::vec3(0.5, 0.0, -0.5), glm::vec2(1.0, 0.0)),
+    ];
 }
 
 pub fn get_screen_plane_vert_list_f32() -> &'static Vec<(glm::Vec3, glm::Vec2)> {
@@ -33,6 +49,16 @@ pub fn get_screen_plane_vert_list_f64() -> &'static Vec<(glm::DVec3, glm::DVec2)
     &SCREEN_PLANE_VERT_LIST_F64
 }
 
+pub fn get_plane_1m_vert_list_f32() -> &'static Vec<(glm::Vec3, glm::Vec2)> {
+    &PLANE_1M_VERT_LIST_F32
+}
+
+pub fn get_plane_1m_vert_list_f64() -> &'static Vec<(glm::DVec3, glm::DVec2)> {
+    &PLANE_1M_VERT_LIST_F64
+}
+
+/// Draws a quad covering the screen with UVs. Caller must ensure
+/// shader is active.
 pub fn draw_screen_quad_with_uv(imm: &mut GPUImmediate, shader: &Shader) {
     let format = imm.get_cleared_vertex_format();
     let pos_attr = format.add_attribute(
@@ -60,6 +86,8 @@ pub fn draw_screen_quad_with_uv(imm: &mut GPUImmediate, shader: &Shader) {
     imm.end();
 }
 
+/// Draws a quad covering the screen. Caller must ensure shader is
+/// active.
 pub fn draw_screen_quad(imm: &mut GPUImmediate, shader: &Shader) {
     let format = imm.get_cleared_vertex_format();
     let pos_attr = format.add_attribute(
@@ -76,6 +104,100 @@ pub fn draw_screen_quad(imm: &mut GPUImmediate, shader: &Shader) {
         .for_each(|(pos, _uv)| {
             imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
         });
+
+    imm.end();
+}
+
+/// Draws a 1m plane along the XZ plane with UVs. Caller must ensure
+/// shader is active.
+pub fn draw_plane_with_uv(imm: &mut GPUImmediate, shader: &Shader) {
+    let format = imm.get_cleared_vertex_format();
+    let pos_attr = format.add_attribute(
+        "in_pos\0".to_string(),
+        GPUVertCompType::F32,
+        3,
+        GPUVertFetchMode::Float,
+    );
+    let uv_attr = format.add_attribute(
+        "in_uv\0".to_string(),
+        GPUVertCompType::F32,
+        2,
+        GPUVertFetchMode::Float,
+    );
+
+    imm.begin(GPUPrimType::Tris, 6, shader);
+
+    get_plane_1m_vert_list_f32().iter().for_each(|(pos, uv)| {
+        imm.attr_2f(uv_attr, uv[0], uv[1]);
+        imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+    });
+
+    imm.end();
+}
+
+/// Draws a 1m plane along the XZ plane. Caller must ensure shader is
+/// active.
+pub fn draw_plane(imm: &mut GPUImmediate, shader: &Shader) {
+    let format = imm.get_cleared_vertex_format();
+    let pos_attr = format.add_attribute(
+        "in_pos\0".to_string(),
+        GPUVertCompType::F32,
+        3,
+        GPUVertFetchMode::Float,
+    );
+
+    imm.begin(GPUPrimType::Tris, 6, shader);
+
+    get_plane_1m_vert_list_f32().iter().for_each(|(pos, _uv)| {
+        imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+    });
+
+    imm.end();
+}
+
+/// Draws a colored plane with specified transformation.
+pub fn draw_color_plane(
+    pos: &glm::DVec3,
+    scale: &glm::DVec3,
+    normal: &glm::DVec3,
+    color: glm::Vec4,
+    imm: &mut GPUImmediate,
+) {
+    let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
+        .as_ref()
+        .unwrap();
+
+    smooth_color_3d_shader.use_shader();
+    let translated_mat = glm::translate(&glm::identity(), pos);
+    let rotated_mat = {
+        let rotation_axis = glm::cross(&glm::vec3(0.0, 1.0, 0.0), normal);
+        let rotation_angle =
+            (glm::dot(&glm::vec3(0.0, 1.0, 0.0), normal) / glm::length(normal)).acos();
+        glm::rotate(&translated_mat, rotation_angle, &rotation_axis)
+    };
+    let model = glm::convert(glm::scale(&rotated_mat, scale));
+    smooth_color_3d_shader.set_mat4("model\0", &model);
+
+    let format = imm.get_cleared_vertex_format();
+    let pos_attr = format.add_attribute(
+        "in_pos\0".to_string(),
+        GPUVertCompType::F32,
+        3,
+        GPUVertFetchMode::Float,
+    );
+    let color_attr = format.add_attribute(
+        "in_color\0".to_string(),
+        GPUVertCompType::F32,
+        4,
+        GPUVertFetchMode::Float,
+    );
+
+    imm.begin(GPUPrimType::Tris, 6, smooth_color_3d_shader);
+
+    get_plane_1m_vert_list_f32().iter().for_each(|(pos, _uv)| {
+        imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+        imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+    });
 
     imm.end();
 }
