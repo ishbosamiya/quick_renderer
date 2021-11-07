@@ -15,8 +15,8 @@ pub mod texture;
 pub mod util;
 
 // expose other crates as public for easier usage.
-pub use egui;
 pub use egui_glfw;
+pub use egui_glfw::egui;
 pub use gl;
 pub use glfw;
 pub use nalgebra_glm as glm;

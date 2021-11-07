@@ -9,7 +9,6 @@ edition = "2018"
 [dependencies]
 glfw = "0.41"
 gl = "0.14"
-egui = "0.13"
 egui_glfw = { git = "ssh://git@github.com/ishbosamiya/egui_glfw.git" }
 nalgebra-glm = { version = "0.13", features = ["serde-serialize"] }
 generational-arena = { version = "0.2", features = ["serde"] }
