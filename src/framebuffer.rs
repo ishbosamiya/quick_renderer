@@ -23,7 +23,7 @@ impl FrameBuffer {
         Self { gl_framebuffer }
     }
 
-    pub fn activate(&self, texture: &TextureRGBAFloat, renderbuffer: &RenderBuffer) {
+    pub fn activate(&self, texture: &mut TextureRGBAFloat, renderbuffer: &RenderBuffer) {
         unsafe {
             gl::BindFramebuffer(gl::FRAMEBUFFER, self.gl_framebuffer);
         }

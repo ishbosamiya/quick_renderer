@@ -9,6 +9,7 @@ pub mod infinite_grid;
 pub mod jfa;
 pub mod mesh;
 pub mod meshio;
+pub mod rasterize;
 pub mod renderbuffer;
 pub mod shader;
 pub mod texture;

@@ -32,7 +32,7 @@ pub fn jfa(
     let renderbuffer = RenderBuffer::new(width, height);
     // Initialization
     {
-        framebuffer.activate(&jfa_texture_1, &renderbuffer);
+        framebuffer.activate(&mut jfa_texture_1, &renderbuffer);
         unsafe {
             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
@@ -51,10 +51,10 @@ pub fn jfa(
         let render_from;
         if step % 2 == 0 {
             render_from = &mut jfa_texture_1;
-            render_to = &jfa_texture_2;
+            render_to = &mut jfa_texture_2;
         } else {
             render_from = &mut jfa_texture_2;
-            render_to = &jfa_texture_1;
+            render_to = &mut jfa_texture_1;
         }
 
         framebuffer.activate(render_to, &renderbuffer);
@@ -98,7 +98,7 @@ pub fn convert_to_distance(
     imm: &mut GPUImmediate,
 ) -> TextureRGBAFloat {
     let framebuffer = FrameBuffer::new();
-    let distance_texture =
+    let mut distance_texture =
         TextureRGBAFloat::new_empty(jfa_texture.get_width(), jfa_texture.get_height());
     let renderbuffer = RenderBuffer::new(jfa_texture.get_width(), jfa_texture.get_height());
 
@@ -115,7 +115,7 @@ pub fn convert_to_distance(
             jfa_texture.get_height().try_into().unwrap(),
         );
     }
-    framebuffer.activate(&distance_texture, &renderbuffer);
+    framebuffer.activate(&mut distance_texture, &renderbuffer);
 
     let jfa_convert_to_distance_shader = shader::builtins::get_jfa_convert_to_distance_shader()
         .as_ref()
