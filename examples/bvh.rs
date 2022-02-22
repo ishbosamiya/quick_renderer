@@ -43,7 +43,7 @@ struct Config {
     bvh_nearest_point_use_callback: bool,
     bvh_color: glm::DVec4,
     bvh_ray_color: glm::DVec4,
-    bvh_ray_intersection: Vec<(glm::DVec3, RayHitData<FaceIndex>)>,
+    bvh_ray_intersection: Vec<(glm::DVec3, RayHitData<FaceIndex, ()>)>,
 }
 
 impl Default for Config {
@@ -70,7 +70,7 @@ impl Config {
         let mut bvh = BVHTree::new(mesh.get_faces().len(), epsilon, self.bvh_tree_type, 8);
 
         mesh.get_faces().iter().for_each(|(_, face)| {
-            let co = face
+            let co: Vec<_> = face
                 .get_verts()
                 .iter()
                 .map(|v_index| {
@@ -80,7 +80,7 @@ impl Config {
                 })
                 .collect();
 
-            bvh.insert(face.get_self_index(), co);
+            bvh.insert(face.get_self_index(), &co);
         });
 
         bvh.balance();
@@ -299,7 +299,7 @@ fn main() {
             if let Some(ray_hit_info) = config.bvh.as_ref().unwrap().ray_cast(
                 camera.get_position(),
                 ray_direction,
-                None::<&fn((&glm::DVec3, &glm::DVec3), _) -> Option<bvh::RayHitData<_>>>,
+                None::<&fn((&glm::DVec3, &glm::DVec3), _) -> Option<bvh::RayHitData<_, _>>>,
             ) {
                 config
                     .bvh_ray_intersection

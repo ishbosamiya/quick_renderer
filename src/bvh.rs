@@ -3,6 +3,8 @@
 use generational_arena::{Arena, Index};
 use lazy_static::lazy_static;
 use nalgebra_glm as glm;
+use serde::Deserialize;
+use serde::Serialize;
 
 use std::cmp::PartialOrd;
 use std::fmt::Debug;
@@ -13,7 +15,7 @@ use crate::shader;
 
 const MAX_TREETYPE: u8 = 32;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 struct BVHNodeIndex(pub Index);
 
 impl BVHNodeIndex {
@@ -22,6 +24,7 @@ impl BVHNodeIndex {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct BVHNode<T>
 where
     T: Copy,
@@ -85,7 +88,7 @@ where
         &mut self,
         start_axis: u8,
         stop_axis: u8,
-        co_many: Vec<glm::DVec3>,
+        co_many: &[glm::DVec3],
         moving: bool,
     ) {
         if !moving {
@@ -97,7 +100,7 @@ where
         for co in co_many {
             for axis_iter in start_axis..stop_axis {
                 let axis_iter = axis_iter as usize;
-                let new_min_max = glm::dot(&co, &BVHTREE_KDOP_AXES[axis_iter]);
+                let new_min_max = glm::dot(co, &BVHTREE_KDOP_AXES[axis_iter]);
                 if new_min_max < bv[2 * axis_iter] {
                     bv[2 * axis_iter] = new_min_max;
                 }
@@ -123,7 +126,8 @@ where
         true
     }
 
-    fn ray_hit(&self, data: &RayCastData, r_dist: &mut f64) -> bool {
+    /// Tests if ray hits the node. On hit it returns the distance.
+    fn ray_hit(&self, data: &RayCastData, dist: f64) -> Option<f64> {
         let bv = &self.bv;
 
         let t1x = (bv[data.index[0]] - data.co[0]) * data.idot_axis[0];
@@ -135,13 +139,12 @@ where
 
         if (t1x > t2y || t2x < t1y || t1x > t2z || t2x < t1z || t1y > t2z || t2y < t1z)
             || (t2x < 0.0 || t2y < 0.0 || t2z < 0.0)
-            || (t1x > *r_dist || t1y > *r_dist || t1z > *r_dist)
+            || (t1x > dist || t1y > dist || t1z > dist)
         {
-            return false;
+            None
+        } else {
+            Some(t1x.max(t1y).max(t1z))
         }
-
-        *r_dist = t1x.max(t1y).max(t1z);
-        true
     }
 
     /// Determines the nearest point of self.
@@ -182,6 +185,7 @@ impl std::fmt::Display for BVHError {
 
 impl std::error::Error for BVHError {}
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BVHTree<T>
 where
     T: Copy,
@@ -299,29 +303,37 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub struct RayHitData<T>
+pub struct RayHitData<T, ExtraData>
 where
     T: Copy,
+    ExtraData: Copy,
 {
     pub data: Option<RayHitOptionalData<T>>,
     pub normal: Option<glm::DVec3>,
     pub dist: f64,
+    pub extra_data: Option<ExtraData>,
 }
 
-impl<T> RayHitData<T>
+impl<T, ExtraData> RayHitData<T, ExtraData>
 where
     T: Copy,
+    ExtraData: Copy,
 {
     pub fn new(dist: f64) -> Self {
         Self {
             data: None,
             normal: None,
             dist,
+            extra_data: None,
         }
     }
 
-    fn set_data(&mut self, data: RayHitOptionalData<T>) {
+    pub fn set_data(&mut self, data: RayHitOptionalData<T>) {
         self.data = Some(data);
+    }
+
+    pub fn set_extra_data(&mut self, extra_data: ExtraData) {
+        self.extra_data = Some(extra_data);
     }
 }
 
@@ -516,7 +528,7 @@ where
     /// will return `index` stored in the node that has closest hit
     ///
     /// `co_many` contains list of points to form the new BV around
-    pub fn insert(&mut self, index: T, co_many: Vec<glm::DVec3>) {
+    pub fn insert(&mut self, index: T, co_many: &[glm::DVec3]) {
         assert!(self.totbranch == 0);
 
         self.nodes[self.totleaf] = BVHNodeIndex(self.node_array.get_unknown_index(self.totleaf));
@@ -801,6 +813,14 @@ where
             let root_child_index = root.children[0];
             let child = self.node_array.get_mut(root_child_index.0).unwrap();
             child.parent = Some(root_index);
+
+            // The tree cannot start with a leaf node, thus there
+            // needs to be 2 nodes at least in the tree when num_leafs
+            // == 1. So self.nodes[1] needs to be set correctly.
+            // TODO(ish): may not be the correct solution, needs
+            // testing and verification
+            self.nodes[1] = root_index;
+
             return;
         }
 
@@ -840,6 +860,12 @@ where
     pub fn balance(&mut self) {
         assert_eq!(self.totbranch, 0);
 
+        if self.totleaf == 0 {
+            // no need to balance the bvh when there are no elements
+            // in the bvh
+            return;
+        }
+
         self.non_recursive_bvh_div_nodes(self.totleaf - 1, self.totleaf);
 
         self.totbranch = implicit_needed_branches(self.tree_type, self.totleaf);
@@ -859,8 +885,8 @@ where
     pub fn update_node(
         &mut self,
         node_index: usize,
-        co_many: Vec<glm::DVec3>,
-        co_moving_many: Vec<glm::DVec3>,
+        co_many: &[glm::DVec3],
+        co_moving_many: &[glm::DVec3],
     ) -> Result<(), BVHError> {
         if node_index > self.totleaf {
             return Err(BVHError::IndexOutOfRange);
@@ -922,6 +948,12 @@ where
     /// `update_node()`, `update_tree()` updates the other nodes of
     /// the tree.
     pub fn update_tree(&mut self) {
+        if self.totleaf == 0 {
+            // no need to balance the bvh when there are no elements
+            // in the bvh
+            return;
+        }
+
         let root_start = self.totleaf;
         let mut index = self.totleaf + self.totbranch - 1;
 
@@ -1079,6 +1111,11 @@ where
     where
         F: Fn(T, T) -> bool,
     {
+        if self.totleaf == 0 {
+            // no elements so no overlap possible
+            return None;
+        }
+
         // TODO(ish): add multithreading support
         let use_threading = false;
         let root_node_len = self.overlap_thread_num();
@@ -1141,18 +1178,18 @@ where
         }
     }
 
-    fn ray_cast_traverse<F>(
+    fn ray_cast_traverse<F, ExtraData>(
         &self,
         node_index: BVHNodeIndex,
         data: &RayCastData,
         callback: Option<&F>,
-        r_hit_data: &mut RayHitData<T>,
+        r_hit_data: &mut RayHitData<T, ExtraData>,
     ) where
-        F: Fn((&glm::DVec3, &glm::DVec3), T) -> Option<RayHitData<T>>,
+        ExtraData: Copy,
+        F: Fn((&glm::DVec3, &glm::DVec3), T) -> Option<RayHitData<T, ExtraData>>,
     {
-        let mut dist = r_hit_data.dist;
         let node = self.node_array.get(node_index.0).unwrap();
-        if node.ray_hit(data, &mut dist) {
+        if let Some(dist) = node.ray_hit(data, r_hit_data.dist) {
             if dist >= r_hit_data.dist {
                 return;
             }
@@ -1162,7 +1199,12 @@ where
                     if let Some(hit_data) =
                         callback((&data.co, &data.dir), node.elem_index.unwrap())
                     {
-                        *r_hit_data = hit_data;
+                        // update r_hit_data only if the current
+                        // recorded distance is lesser than the
+                        // distance got from the callback
+                        if hit_data.dist < r_hit_data.dist {
+                            *r_hit_data = hit_data;
+                        }
                     }
                 } else {
                     let optional_data = RayHitOptionalData::new(
@@ -1192,15 +1234,21 @@ where
     ///
     /// Returns `None` if `ray_cast` didn't hit the BVH, return
     /// `Some(RayHitData)` if it hit the BVH (and callback returned `Some`)
-    pub fn ray_cast<F>(
+    pub fn ray_cast<F, ExtraData>(
         &self,
         co: glm::DVec3,
         dir: glm::DVec3,
         callback: Option<&F>,
-    ) -> Option<RayHitData<T>>
+    ) -> Option<RayHitData<T, ExtraData>>
     where
-        F: Fn((&glm::DVec3, &glm::DVec3), T) -> Option<RayHitData<T>>,
+        ExtraData: Copy,
+        F: Fn((&glm::DVec3, &glm::DVec3), T) -> Option<RayHitData<T, ExtraData>>,
     {
+        if self.totleaf == 0 {
+            // no elements so no ray intersection possible
+            return None;
+        }
+
         let root_index = self.nodes[self.totleaf];
 
         let data = RayCastData::new(co, dir);
@@ -1388,6 +1436,16 @@ where
                 }
             }
         }
+    }
+
+    pub fn get_min_max_bounds(&self) -> (glm::DVec3, glm::DVec3) {
+        let root_index = self.nodes[self.totleaf];
+        let root = &self.node_array.get(root_index.0).unwrap();
+
+        (
+            glm::vec3(root.bv[0], root.bv[2], root.bv[4]),
+            glm::vec3(root.bv[1], root.bv[3], root.bv[5]),
+        )
     }
 }
 
@@ -1639,7 +1697,7 @@ mod tests {
         use super::ArenaFunctions;
         use nalgebra_glm as glm;
         let mut bvh = super::BVHTree::<usize>::new(1, 0.001, 3, 6);
-        bvh.insert(0, vec![glm::vec3(-1.0, 0.0, 0.0), glm::vec3(1.0, 0.0, 0.0)]);
+        bvh.insert(0, &[glm::vec3(-1.0, 0.0, 0.0), glm::vec3(1.0, 0.0, 0.0)]);
         bvh.balance();
         assert_eq!(bvh.nodes.len(), bvh.node_array.len());
         assert_eq!(bvh.nodes.len(), 4);
@@ -1655,9 +1713,9 @@ mod tests {
         use super::ArenaFunctions;
         use nalgebra_glm as glm;
         let mut bvh = super::BVHTree::new(5, 0.001, 4, 6);
-        bvh.insert(0, vec![glm::vec3(-1.0, 0.0, 0.0), glm::vec3(1.0, 0.0, 0.0)]);
-        bvh.insert(1, vec![glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 1.0, 0.0)]);
-        bvh.insert(2, vec![glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, 0.0, 1.0)]);
+        bvh.insert(0, &[glm::vec3(-1.0, 0.0, 0.0), glm::vec3(1.0, 0.0, 0.0)]);
+        bvh.insert(1, &[glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 1.0, 0.0)]);
+        bvh.insert(2, &[glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, 0.0, 1.0)]);
         bvh.balance();
         assert_eq!(bvh.nodes.len(), bvh.node_array.len());
         assert_eq!(bvh.nodes.len(), 11);
