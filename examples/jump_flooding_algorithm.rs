@@ -243,7 +243,10 @@ fn main() {
             }
 
             infinite_grid
-                .draw(&InfiniteGridDrawData::new(imm.clone()))
+                .draw(&InfiniteGridDrawData::new(
+                    imm.clone(),
+                    glm::vec4(0.2, 0.2, 0.2, 1.0),
+                ))
                 .unwrap();
         }
 

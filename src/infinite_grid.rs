@@ -11,9 +11,9 @@ use crate::{
 /// magic
 ///
 /// See
-/// https://github.com/martin-pr/possumwood/wiki/Infinite-ground-plane-using-GLSL-shaders
+/// <https://github.com/martin-pr/possumwood/wiki/Infinite-ground-plane-using-GLSL-shaders>
 /// and
-/// https://asliceofrendering.com/scene%20helper/2020/01/05/InfiniteGrid/
+/// <https://asliceofrendering.com/scene%20helper/2020/01/05/InfiniteGrid/>
 /// for more details about this approach
 ///
 /// Drawing the grid requires blending, so it turns it on using
@@ -47,11 +47,12 @@ impl Default for InfiniteGrid {
 
 pub struct InfiniteGridDrawData {
     imm: Rc<RefCell<GPUImmediate>>,
+    color: glm::DVec4,
 }
 
 impl InfiniteGridDrawData {
-    pub fn new(imm: Rc<RefCell<GPUImmediate>>) -> Self {
-        Self { imm }
+    pub fn new(imm: Rc<RefCell<GPUImmediate>>, color: glm::DVec4) -> Self {
+        Self { imm, color }
     }
 }
 
@@ -60,7 +61,7 @@ impl Drawable for InfiniteGrid {
     type Error = NoSpecificDrawError;
 
     fn draw(&self, extra_data: &InfiniteGridDrawData) -> Result<(), NoSpecificDrawError> {
-        let imm = &mut extra_data.imm.borrow_mut();
+        let mut imm = extra_data.imm.borrow_mut();
 
         unsafe {
             gl::Enable(gl::BLEND);
@@ -72,6 +73,8 @@ impl Drawable for InfiniteGrid {
             .unwrap();
 
         infinite_grid_shader.use_shader();
+
+        infinite_grid_shader.set_vec4("grid_color\0", &glm::convert(extra_data.color));
 
         let format = imm.get_cleared_vertex_format();
         let pos_attr = format.add_attribute(
