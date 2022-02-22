@@ -2,7 +2,7 @@ use lazy_static::lazy_static;
 use paste::paste;
 
 use super::{Shader, ShaderError};
-use crate::camera::WindowCamera;
+use crate::camera::Camera;
 use crate::glm;
 
 macro_rules! load_builtin_shader {
@@ -179,7 +179,7 @@ pub fn display_uniform_and_attribute_info() {
     }
 }
 
-pub fn setup_shaders(camera: &WindowCamera, window_width: usize, window_height: usize) {
+pub fn setup_shaders(camera: &Camera, window_width: usize, window_height: usize) {
     let projection_matrix =
         &glm::convert(camera.get_projection_matrix(window_width, window_height));
     let view_matrix = &glm::convert(camera.get_view_matrix());

@@ -10,7 +10,7 @@ use quick_renderer::bvh::BVHDrawData;
 use quick_renderer::bvh::BVHTree;
 use quick_renderer::bvh::NearestData;
 use quick_renderer::bvh::RayHitData;
-use quick_renderer::camera::WindowCamera;
+use quick_renderer::camera::Camera;
 use quick_renderer::drawable::Drawable;
 use quick_renderer::egui;
 use quick_renderer::egui_glfw;
@@ -138,12 +138,13 @@ fn main() {
 
     let mesh = mesh::builtins::get_monkey_subd_01_triangulated();
 
-    let mut camera = WindowCamera::new(
+    let mut camera = Camera::new(
         glm::vec3(0.0, 0.0, 3.0),
         glm::vec3(0.0, 1.0, 0.0),
         -90.0,
         0.0,
         45.0,
+        None,
     );
 
     let mut imm = GPUImmediate::new();
@@ -466,7 +467,7 @@ fn main() {
 fn handle_window_event(
     event: &glfw::WindowEvent,
     window: &mut glfw::Window,
-    camera: &mut WindowCamera,
+    camera: &mut Camera,
     config: &mut Config,
     last_cursor: &mut (f64, f64),
 ) {
