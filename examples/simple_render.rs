@@ -1,4 +1,6 @@
+use std::cell::RefCell;
 use std::convert::TryInto;
+use std::rc::Rc;
 
 use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
@@ -76,7 +78,7 @@ fn main() {
         None,
     );
 
-    let mut imm = GPUImmediate::new();
+    let imm = Rc::new(RefCell::new(GPUImmediate::new()));
 
     shader::builtins::display_uniform_and_attribute_info();
     let directional_light_shader = shader::builtins::get_directional_light_shader()
@@ -129,8 +131,8 @@ fn main() {
             "model\0",
             &glm::translate(&glm::identity(), &glm::vec3(2.1, 0.0, 0.0)),
         );
-        mesh.draw(&mut MeshDrawData::new(
-            &mut imm,
+        mesh.draw(&MeshDrawData::new(
+            imm.clone(),
             MeshUseShader::DirectionalLight,
             None,
         ))
@@ -141,8 +143,8 @@ fn main() {
             "model\0",
             &glm::translate(&glm::identity(), &glm::vec3(-2.1, 0.0, 0.0)),
         );
-        mesh.draw(&mut MeshDrawData::new(
-            &mut imm,
+        mesh.draw(&MeshDrawData::new(
+            imm.clone(),
             MeshUseShader::SmoothColor3D,
             Some(glm::vec4(1.0, 0.2, 0.5, 1.0)),
         ))
@@ -153,8 +155,8 @@ fn main() {
             "model\0",
             &glm::translate(&glm::identity(), &glm::vec3(0.0, 2.1, 0.0)),
         );
-        mesh.draw(&mut MeshDrawData::new(
-            &mut imm,
+        mesh.draw(&MeshDrawData::new(
+            imm.clone(),
             MeshUseShader::FaceOrientation,
             None,
         ))
@@ -169,7 +171,7 @@ fn main() {
             }
 
             infinite_grid
-                .draw(&mut InfiniteGridDrawData::new(&mut imm))
+                .draw(&InfiniteGridDrawData::new(imm.clone()))
                 .unwrap();
         }
 

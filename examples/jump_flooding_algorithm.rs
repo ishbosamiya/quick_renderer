@@ -23,7 +23,9 @@ use quick_renderer::renderbuffer::RenderBuffer;
 use quick_renderer::shader;
 use quick_renderer::texture::TextureRGBAFloat;
 
+use std::cell::RefCell;
 use std::convert::TryInto;
+use std::rc::Rc;
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -36,7 +38,12 @@ fn main() {
 
     // creating window
     let (mut window, events) = glfw
-        .create_window(1280, 720, "Outline Render", glfw::WindowMode::Windowed)
+        .create_window(
+            1280,
+            720,
+            "Jump Flooding Algorithm",
+            glfw::WindowMode::Windowed,
+        )
         .expect("ERROR: glfw window creation failed");
 
     // setup bunch of polling data
@@ -83,7 +90,7 @@ fn main() {
         None,
     );
 
-    let mut imm = GPUImmediate::new();
+    let imm = Rc::new(RefCell::new(GPUImmediate::new()));
 
     shader::builtins::display_uniform_and_attribute_info();
     let directional_light_shader = shader::builtins::get_directional_light_shader()
@@ -142,8 +149,8 @@ fn main() {
 
         directional_light_shader.use_shader();
         directional_light_shader.set_mat4("model\0", &glm::identity());
-        mesh.draw(&mut MeshDrawData::new(
-            &mut imm,
+        mesh.draw(&MeshDrawData::new(
+            imm.clone(),
             MeshUseShader::DirectionalLight,
             None,
         ))
@@ -179,8 +186,8 @@ fn main() {
                 ),
             );
             smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
-            mesh.draw(&mut MeshDrawData::new(
-                &mut imm,
+            mesh.draw(&MeshDrawData::new(
+                imm.clone(),
                 MeshUseShader::SmoothColor3D,
                 Some(glm::vec4(1.0, 1.0, 1.0, 1.0)),
             ))
@@ -200,11 +207,11 @@ fn main() {
         }
 
         {
-            let mut jfa_texture = jfa::jfa(&mut test_image, jfa_num_steps, &mut imm);
+            let mut jfa_texture = jfa::jfa(&mut test_image, jfa_num_steps, &mut imm.borrow_mut());
 
             let mut final_texture;
             if jfa_convert_to_distance {
-                final_texture = jfa::convert_to_distance(&mut jfa_texture, &mut imm);
+                final_texture = jfa::convert_to_distance(&mut jfa_texture, &mut imm.borrow_mut());
             } else {
                 final_texture = jfa_texture;
             }
@@ -224,7 +231,7 @@ fn main() {
                 ),
             );
             final_texture.activate(31);
-            gpu_utils::draw_screen_quad_with_uv(&mut imm, flat_texture_shader);
+            gpu_utils::draw_screen_quad_with_uv(&mut imm.borrow_mut(), flat_texture_shader);
         }
 
         // Keep meshes that have shaders that need alpha channel
@@ -236,7 +243,7 @@ fn main() {
             }
 
             infinite_grid
-                .draw(&mut InfiniteGridDrawData::new(&mut imm))
+                .draw(&InfiniteGridDrawData::new(imm.clone()))
                 .unwrap();
         }
 
@@ -244,7 +251,7 @@ fn main() {
         {
             egui.begin_frame(&window, &mut glfw);
             egui::Window::new("Hello world!").show(egui.get_egui_ctx(), |ui| {
-                ui.label("Hello World, Outline Render!");
+                ui.label("Hello World, Jump Flooding Algorithm!");
                 ui.label(format!("fps: {:.2}", fps.update_and_get(Some(60.0))));
                 ui.add(
                     egui::Slider::new(&mut jfa_num_steps, 0..=30)

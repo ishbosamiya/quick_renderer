@@ -1,4 +1,6 @@
+use std::cell::RefCell;
 use std::convert::TryInto;
+use std::rc::Rc;
 
 use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
@@ -147,7 +149,7 @@ fn main() {
         None,
     );
 
-    let mut imm = GPUImmediate::new();
+    let imm = Rc::new(RefCell::new(GPUImmediate::new()));
 
     shader::builtins::display_uniform_and_attribute_info();
     let directional_light_shader = shader::builtins::get_directional_light_shader()
@@ -235,8 +237,8 @@ fn main() {
 
         directional_light_shader.use_shader();
         directional_light_shader.set_mat4("model\0", &glm::identity());
-        mesh.draw(&mut MeshDrawData::new(
-            &mut imm,
+        mesh.draw(&MeshDrawData::new(
+            imm.clone(),
             MeshUseShader::DirectionalLight,
             None,
         ))
@@ -246,13 +248,13 @@ fn main() {
             &config.bvh_nearest_point_from,
             0.02,
             glm::vec4(1.0, 0.2, 0.5, 1.0),
-            &mut imm,
+            imm.clone(),
         );
 
         let bvh = config.bvh.as_ref().unwrap();
 
-        bvh.draw(&mut BVHDrawData::new(
-            &mut imm,
+        bvh.draw(&BVHDrawData::new(
+            imm.clone(),
             config.bvh_draw_level,
             config.bvh_color,
         ))
@@ -276,7 +278,7 @@ fn main() {
                 &bvh_nearest_point_data.get_co().unwrap(),
                 0.02,
                 glm::vec4(1.0, 0.2, 0.5, 1.0),
-                &mut imm,
+                imm.clone(),
             );
 
             draw_lines(
@@ -285,7 +287,7 @@ fn main() {
                     config.bvh_nearest_point_from,
                 ],
                 glm::vec4(1.0, 0.2, 0.5, 1.0),
-                &mut imm,
+                &mut imm.borrow_mut(),
             );
         }
 
@@ -312,6 +314,8 @@ fn main() {
 
         {
             if !config.bvh_ray_intersection.is_empty() {
+                let imm = &mut imm.borrow_mut();
+
                 let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
                     .as_ref()
                     .unwrap();
@@ -388,7 +392,7 @@ fn main() {
                     radius,
                     glm::vec4(1.0, 0.2, 0.5, 0.2),
                     glm::vec4(0.5, 0.2, 1.0, 0.2),
-                    &mut imm,
+                    &mut imm.borrow_mut(),
                 );
 
                 gpu_utils::draw_color_plane(
@@ -396,12 +400,12 @@ fn main() {
                     &glm::vec3(2.0, 2.0, 2.0),
                     &(bvh_nearest_point_data.get_co().unwrap() - config.bvh_nearest_point_from),
                     glm::vec4(0.2, 0.2, 1.0, 0.2),
-                    &mut imm,
+                    &mut imm.borrow_mut(),
                 );
             }
 
             infinite_grid
-                .draw(&mut InfiniteGridDrawData::new(&mut imm))
+                .draw(&InfiniteGridDrawData::new(imm.clone()))
                 .unwrap();
         }
 

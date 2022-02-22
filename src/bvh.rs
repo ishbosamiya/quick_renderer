@@ -6,10 +6,13 @@ use nalgebra_glm as glm;
 use serde::Deserialize;
 use serde::Serialize;
 
+use std::cell::RefCell;
 use std::cmp::PartialOrd;
 use std::fmt::Debug;
+use std::rc::Rc;
 
 use crate::drawable::Drawable;
+use crate::drawable::NoSpecificDrawError;
 use crate::gpu_immediate::*;
 use crate::shader;
 
@@ -1523,14 +1526,14 @@ fn draw_box(
     draw_line(imm, &v4, &v8, pos_attr, color_attr, color);
 }
 
-pub struct BVHDrawData<'a> {
-    imm: &'a mut GPUImmediate,
+pub struct BVHDrawData {
+    imm: Rc<RefCell<GPUImmediate>>,
     draw_level: usize,
     color: glm::DVec4,
 }
 
-impl<'a> BVHDrawData<'a> {
-    pub fn new(imm: &'a mut GPUImmediate, draw_level: usize, color: glm::DVec4) -> Self {
+impl BVHDrawData {
+    pub fn new(imm: Rc<RefCell<GPUImmediate>>, draw_level: usize, color: glm::DVec4) -> Self {
         Self {
             imm,
             draw_level,
@@ -1539,12 +1542,15 @@ impl<'a> BVHDrawData<'a> {
     }
 }
 
-impl<T> Drawable<BVHDrawData<'_>, ()> for BVHTree<T>
+impl<T> Drawable for BVHTree<T>
 where
     T: Copy,
 {
-    fn draw(&self, draw_data: &mut BVHDrawData) -> Result<(), ()> {
-        let imm = &mut draw_data.imm;
+    type ExtraData = BVHDrawData;
+    type Error = NoSpecificDrawError;
+
+    fn draw(&self, draw_data: &BVHDrawData) -> Result<(), Self::Error> {
+        let imm = &mut draw_data.imm.borrow_mut();
         let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
             .as_ref()
             .unwrap();

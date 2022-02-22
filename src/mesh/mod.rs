@@ -2,9 +2,11 @@ use generational_arena::{Arena, Index};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::path::Path;
+use std::rc::Rc;
 
 use crate::drawable::Drawable;
 use crate::glm;
@@ -678,15 +680,12 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
             .collect()
     }
 
-    fn draw_face_orientation_shader(
-        &self,
-        draw_data: &mut MeshDrawData,
-    ) -> Result<(), MeshDrawError> {
+    fn draw_face_orientation_shader(&self, draw_data: &MeshDrawData) -> Result<(), MeshDrawError> {
         if self.faces.is_empty() {
             return Ok(());
         }
 
-        let imm = &mut draw_data.imm;
+        let imm = &mut draw_data.imm.borrow_mut();
 
         let face_orientation_shader = shader::builtins::get_face_orientation_shader()
             .as_ref()
@@ -736,10 +735,7 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
         Ok(())
     }
 
-    fn draw_smooth_color_3d_shader(
-        &self,
-        draw_data: &mut MeshDrawData,
-    ) -> Result<(), MeshDrawError> {
+    fn draw_smooth_color_3d_shader(&self, draw_data: &MeshDrawData) -> Result<(), MeshDrawError> {
         if self.faces.is_empty() {
             return Ok(());
         }
@@ -748,7 +744,7 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
             .color
             .ok_or(MeshDrawError::NoColorButSmoothColorShader)?;
 
-        let imm = &mut draw_data.imm;
+        let imm = &mut draw_data.imm.borrow_mut();
 
         let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
             .as_ref()
@@ -807,15 +803,12 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
         Ok(())
     }
 
-    fn draw_directional_light_shader(
-        &self,
-        draw_data: &mut MeshDrawData,
-    ) -> Result<(), MeshDrawError> {
+    fn draw_directional_light_shader(&self, draw_data: &MeshDrawData) -> Result<(), MeshDrawError> {
         if self.faces.is_empty() {
             return Ok(());
         }
 
-        let imm = &mut draw_data.imm;
+        let imm = &mut draw_data.imm.borrow_mut();
         let directional_light_shader = shader::builtins::get_directional_light_shader()
             .as_ref()
             .unwrap();
@@ -925,15 +918,15 @@ impl Display for MeshUseShader {
     }
 }
 
-pub struct MeshDrawData<'a> {
-    imm: &'a mut GPUImmediate,
+pub struct MeshDrawData {
+    imm: Rc<RefCell<GPUImmediate>>,
     use_shader: MeshUseShader,
     color: Option<glm::Vec4>,
 }
 
-impl<'a> MeshDrawData<'a> {
+impl MeshDrawData {
     pub fn new(
-        imm: &'a mut GPUImmediate,
+        imm: Rc<RefCell<GPUImmediate>>,
         use_shader: MeshUseShader,
         color: Option<glm::Vec4>,
     ) -> Self {
@@ -970,8 +963,11 @@ impl From<()> for MeshDrawError {
     }
 }
 
-impl<END, EVD, EED, EFD> Drawable<MeshDrawData<'_>, MeshDrawError> for Mesh<END, EVD, EED, EFD> {
-    fn draw(&self, draw_data: &mut MeshDrawData) -> Result<(), MeshDrawError> {
+impl<END, EVD, EED, EFD> Drawable for Mesh<END, EVD, EED, EFD> {
+    type ExtraData = MeshDrawData;
+    type Error = MeshDrawError;
+
+    fn draw(&self, draw_data: &MeshDrawData) -> Result<(), MeshDrawError> {
         match draw_data.use_shader {
             MeshUseShader::DirectionalLight => self.draw_directional_light_shader(draw_data),
             MeshUseShader::SmoothColor3D => self.draw_smooth_color_3d_shader(draw_data),
@@ -979,8 +975,8 @@ impl<END, EVD, EED, EFD> Drawable<MeshDrawData<'_>, MeshDrawError> for Mesh<END,
         }
     }
 
-    fn draw_wireframe(&self, draw_data: &mut MeshDrawData) -> Result<(), MeshDrawError> {
-        let imm = &mut draw_data.imm;
+    fn draw_wireframe(&self, draw_data: &MeshDrawData) -> Result<(), MeshDrawError> {
+        let imm = &mut draw_data.imm.borrow_mut();
 
         let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
             .as_ref()

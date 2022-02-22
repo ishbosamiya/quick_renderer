@@ -1,5 +1,7 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crate::{
-    drawable::Drawable,
+    drawable::{Drawable, NoSpecificDrawError},
     glm,
     gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode},
     shader,
@@ -43,19 +45,22 @@ impl Default for InfiniteGrid {
     }
 }
 
-pub struct InfiniteGridDrawData<'a> {
-    imm: &'a mut GPUImmediate,
+pub struct InfiniteGridDrawData {
+    imm: Rc<RefCell<GPUImmediate>>,
 }
 
-impl<'a> InfiniteGridDrawData<'a> {
-    pub fn new(imm: &'a mut GPUImmediate) -> Self {
+impl InfiniteGridDrawData {
+    pub fn new(imm: Rc<RefCell<GPUImmediate>>) -> Self {
         Self { imm }
     }
 }
 
-impl Drawable<InfiniteGridDrawData<'_>, ()> for InfiniteGrid {
-    fn draw(&self, extra_data: &mut InfiniteGridDrawData) -> Result<(), ()> {
-        let imm = &mut extra_data.imm;
+impl Drawable for InfiniteGrid {
+    type ExtraData = InfiniteGridDrawData;
+    type Error = NoSpecificDrawError;
+
+    fn draw(&self, extra_data: &InfiniteGridDrawData) -> Result<(), NoSpecificDrawError> {
+        let imm = &mut extra_data.imm.borrow_mut();
 
         unsafe {
             gl::Enable(gl::BLEND);
@@ -87,7 +92,10 @@ impl Drawable<InfiniteGridDrawData<'_>, ()> for InfiniteGrid {
         Ok(())
     }
 
-    fn draw_wireframe(&self, _extra_data: &mut InfiniteGridDrawData) -> Result<(), ()> {
+    fn draw_wireframe(
+        &self,
+        _extra_data: &InfiniteGridDrawData,
+    ) -> Result<(), NoSpecificDrawError> {
         unreachable!()
     }
 }

@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use lazy_static::lazy_static;
 
 use crate::drawable::Drawable;
@@ -237,7 +240,12 @@ pub fn draw_smooth_sphere_at(
 /// that cover a small portion of the render target. For smooth
 /// spheres that cover a large portion of the render target use
 /// `draw_smooth_sphere_at()`.
-pub fn draw_sphere_at(pos: &glm::DVec3, radius: f64, color: glm::Vec4, imm: &mut GPUImmediate) {
+pub fn draw_sphere_at(
+    pos: &glm::DVec3,
+    radius: f64,
+    color: glm::Vec4,
+    imm: Rc<RefCell<GPUImmediate>>,
+) {
     let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
         .as_ref()
         .unwrap();
@@ -253,7 +261,7 @@ pub fn draw_sphere_at(pos: &glm::DVec3, radius: f64, color: glm::Vec4, imm: &mut
     let ico_sphere = mesh::builtins::get_ico_sphere_subd_01();
 
     ico_sphere
-        .draw(&mut MeshDrawData::new(
+        .draw(&MeshDrawData::new(
             imm,
             mesh::MeshUseShader::SmoothColor3D,
             Some(color),

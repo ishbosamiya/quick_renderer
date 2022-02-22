@@ -2,7 +2,11 @@ use std::convert::TryInto;
 
 use memoffset::offset_of;
 
-use crate::{drawable::Drawable, glm, rasterize::Rasterize};
+use crate::{
+    drawable::{Drawable, NoSpecificDrawError},
+    glm,
+    rasterize::Rasterize,
+};
 
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy)]
@@ -158,8 +162,11 @@ impl GLMesh {
     }
 }
 
-impl Drawable<(), ()> for GLMesh {
-    fn draw(&self, _extra_data: &mut ()) -> Result<(), ()> {
+impl Drawable for GLMesh {
+    type ExtraData = ();
+    type Error = NoSpecificDrawError;
+
+    fn draw(&self, _extra_data: &Self::ExtraData) -> Result<(), Self::Error> {
         unsafe {
             gl::BindVertexArray(self.vao.unwrap());
             gl::DrawElements(
@@ -173,7 +180,7 @@ impl Drawable<(), ()> for GLMesh {
         Ok(())
     }
 
-    fn draw_wireframe(&self, _extra_data: &mut ()) -> Result<(), ()> {
+    fn draw_wireframe(&self, _extra_data: &Self::ExtraData) -> Result<(), Self::Error> {
         unreachable!("no wireframe support for GLMesh")
     }
 }
