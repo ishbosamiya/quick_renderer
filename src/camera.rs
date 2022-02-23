@@ -413,6 +413,16 @@ impl Camera {
         self.pitch = pitch;
         self.update_camera_vectors();
     }
+
+    /// Set the camera's near plane.
+    pub fn set_near_plane(&mut self, near_plane: f64) {
+        self.near_plane = near_plane;
+    }
+
+    /// Set the camera's far plane.
+    pub fn set_far_plane(&mut self, far_plane: f64) {
+        self.far_plane = far_plane;
+    }
 }
 
 pub struct CameraDrawData {
