@@ -142,7 +142,9 @@ impl Camera {
         camera
     }
 
-    fn update_camera_vectors(&mut self) {
+    /// Calculate the `front`, `right` and `up` vectors of the camera
+    /// from the `yaw`, `pitch` and `world_up` values of the camera
+    pub fn update_camera_vectors(&mut self) {
         let yaw_radians = f64::to_radians(self.yaw);
         let pitch_radians = f64::to_radians(self.pitch);
         let front: glm::DVec3 = glm::vec3(
