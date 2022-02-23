@@ -34,7 +34,7 @@ pub trait Drawable {
 
 /// When no specific draw error is possible, use this type for
 /// Drawable::Error.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct NoSpecificDrawError;
 
 impl Display for NoSpecificDrawError {
