@@ -5,6 +5,7 @@ use super::{Shader, ShaderError};
 use crate::camera::Camera;
 use crate::glm;
 
+#[macro_export]
 macro_rules! load_builtin_shader {
     ( $get_shader:ident ; $get_vert_code:ident ; $get_frag_code:ident ; $vert_location:tt ; $frag_location:tt ; $static_name:ident ) => {
         lazy_static! {
@@ -26,6 +27,7 @@ macro_rules! load_builtin_shader {
     };
 }
 
+#[macro_export]
 macro_rules! load_builtin_shader_easy {
     ( $name:ident ; $vert_location:tt ; $frag_location:tt ) => {
         paste! {
