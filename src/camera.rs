@@ -1,6 +1,15 @@
+use std::{cell::RefCell, rc::Rc};
+
 use serde::{Deserialize, Serialize};
 
-use crate::{glm, util};
+use crate::{
+    drawable::{Drawable, NoSpecificDrawError},
+    glm,
+    gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode},
+    gpu_utils, shader,
+    texture::TextureRGBAFloat,
+    util,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Camera {
@@ -402,4 +411,238 @@ impl Camera {
         self.pitch = pitch;
         self.update_camera_vectors();
     }
+}
+
+pub struct CameraDrawData {
+    imm: Rc<RefCell<GPUImmediate>>,
+    image: Option<Rc<RefCell<TextureRGBAFloat>>>,
+    alpha_value: f64,
+    use_depth_for_image: bool,
+}
+
+impl CameraDrawData {
+    pub fn new(
+        imm: Rc<RefCell<GPUImmediate>>,
+        image: Option<Rc<RefCell<TextureRGBAFloat>>>,
+        alpha_value: f64,
+        use_depth_for_image: bool,
+    ) -> Self {
+        Self {
+            imm,
+            image,
+            alpha_value,
+            use_depth_for_image,
+        }
+    }
+}
+
+impl Drawable for Camera {
+    type ExtraData = CameraDrawData;
+    type Error = NoSpecificDrawError;
+
+    fn draw(&self, extra_data: &Self::ExtraData) -> Result<(), Self::Error> {
+        let sensor = self.get_sensor().ok_or(NoSpecificDrawError)?;
+
+        // Scale the camera so that the sensor width or height is 1m,
+        // the other side is dependent on aspect ratio. So the sensor
+        // shown (camera plane) is a constant size and the focal
+        // length changes to convey the required information.
+        //
+        // A camera with a sensor size (width) of 36mm and a focal
+        // length of 36mm will be 1m long and 1m wide in 3D space.
+        let focal_length = self
+            .get_focal_length()
+            .expect("by this point focal length should always be available");
+        // Equivalent focal length if the sensor was a 36mm sensor
+        // (crop factor correction).
+        let focal_length = focal_length * 36.0 / sensor.get_width();
+        // Focal length required in 3D space, for a focal length of
+        // 36mm it is 1m.
+        let focal_length = focal_length / 36.0;
+        let camera_plane_center = self.position + self.front * focal_length;
+
+        // Sensor width of 1m.
+        let horizontal = self.right / 2.0;
+        // Sensor height dependent on sensor width.
+        let vertical = self.up / 2.0 / sensor.get_aspect_ratio();
+
+        let camera_plane_top_left: glm::Vec3 =
+            glm::convert(camera_plane_center + -1.0 * horizontal + 1.0 * vertical);
+        let camera_plane_top_right: glm::Vec3 =
+            glm::convert(camera_plane_center + 1.0 * horizontal + 1.0 * vertical);
+        let camera_plane_bottom_left: glm::Vec3 =
+            glm::convert(camera_plane_center + -1.0 * horizontal + -1.0 * vertical);
+        let camera_plane_bottom_right: glm::Vec3 =
+            glm::convert(camera_plane_center + 1.0 * horizontal + -1.0 * vertical);
+        let origin: glm::Vec3 = glm::convert(self.get_position());
+        let vertical: glm::Vec3 = glm::convert(vertical);
+
+        let imm = &mut extra_data.imm.borrow_mut();
+        let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
+            .as_ref()
+            .unwrap();
+        let color: glm::Vec4 = glm::vec4(0.0, 0.0, 0.0, 1.0);
+        smooth_color_3d_shader.use_shader();
+        smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
+
+        let format = imm.get_cleared_vertex_format();
+        let pos_attr = format.add_attribute(
+            "in_pos\0".to_string(),
+            GPUVertCompType::F32,
+            3,
+            GPUVertFetchMode::Float,
+        );
+        let color_attr = format.add_attribute(
+            "in_color\0".to_string(),
+            GPUVertCompType::F32,
+            4,
+            GPUVertFetchMode::Float,
+        );
+
+        imm.begin(GPUPrimType::Lines, 16, smooth_color_3d_shader);
+
+        // from origin to the plane
+        draw_line(
+            imm,
+            &origin,
+            &camera_plane_top_left,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+        draw_line(
+            imm,
+            &origin,
+            &camera_plane_top_right,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+        draw_line(
+            imm,
+            &origin,
+            &camera_plane_bottom_left,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+        draw_line(
+            imm,
+            &origin,
+            &camera_plane_bottom_right,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+
+        // the plane
+        draw_line(
+            imm,
+            &camera_plane_top_left,
+            &camera_plane_top_right,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+        draw_line(
+            imm,
+            &camera_plane_top_right,
+            &camera_plane_bottom_right,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+        draw_line(
+            imm,
+            &camera_plane_bottom_right,
+            &camera_plane_bottom_left,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+        draw_line(
+            imm,
+            &camera_plane_bottom_left,
+            &camera_plane_top_left,
+            pos_attr,
+            color_attr,
+            &color,
+        );
+
+        imm.end();
+
+        // triangle at the top
+        imm.begin(GPUPrimType::Tris, 3, smooth_color_3d_shader);
+
+        draw_triangle(
+            imm,
+            &camera_plane_top_left,
+            &camera_plane_top_right,
+            &((camera_plane_top_left + camera_plane_top_right) / 2.0 + vertical),
+            pos_attr,
+            color_attr,
+            &color,
+        );
+
+        imm.end();
+
+        // draw image in the camera plane
+        if let Some(image) = &extra_data.image {
+            if !extra_data.use_depth_for_image {
+                unsafe {
+                    gl::Disable(gl::DEPTH_TEST);
+                }
+            }
+
+            let scale_x = (camera_plane_top_left - camera_plane_top_right).norm() as _;
+            let scale_z = (camera_plane_top_left - camera_plane_bottom_left).norm() as _;
+            gpu_utils::draw_plane_with_image(
+                &camera_plane_center,
+                &glm::vec3(scale_x, 1.0, scale_z),
+                &(camera_plane_center - self.get_position()).normalize(),
+                &mut image.borrow_mut(),
+                extra_data.alpha_value,
+                imm,
+            );
+
+            if !extra_data.use_depth_for_image {
+                unsafe {
+                    gl::Enable(gl::DEPTH_TEST);
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+fn draw_line(
+    imm: &mut GPUImmediate,
+    p1: &glm::Vec3,
+    p2: &glm::Vec3,
+    pos_attr: usize,
+    color_attr: usize,
+    color: &glm::Vec4,
+) {
+    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+    imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
+    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+    imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
+}
+
+fn draw_triangle(
+    imm: &mut GPUImmediate,
+    p1: &glm::Vec3,
+    p2: &glm::Vec3,
+    p3: &glm::Vec3,
+    pos_attr: usize,
+    color_attr: usize,
+    color: &glm::Vec4,
+) {
+    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+    imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
+    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+    imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
+    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+    imm.vertex_3f(pos_attr, p3[0], p3[1], p3[2]);
 }
