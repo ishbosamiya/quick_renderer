@@ -212,8 +212,8 @@ impl TextureRGBAFloat {
         self.height
     }
 
-    pub fn get_pixels(&self) -> &Vec<glm::Vec4> {
-        &self.pixels
+    pub fn get_pixels(&self) -> &[glm::Vec4] {
+        self.pixels.as_ref()
     }
 
     pub fn set_pixel(&mut self, i: usize, j: usize, data: glm::Vec4) {
