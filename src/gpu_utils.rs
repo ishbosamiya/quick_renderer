@@ -7,6 +7,7 @@ use crate::drawable::Drawable;
 use crate::gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode};
 use crate::mesh::MeshDrawData;
 use crate::shader::Shader;
+use crate::texture::TextureRGBAFloat;
 use crate::{glm, mesh, shader};
 
 lazy_static! {
@@ -267,4 +268,58 @@ pub fn draw_sphere_at(
             Some(color),
         ))
         .unwrap();
+}
+
+/// Draws a plane with specified transformation.
+pub fn draw_plane_with_image(
+    pos: &glm::DVec3,
+    scale: &glm::DVec3,
+    normal: &glm::DVec3,
+    image: &mut TextureRGBAFloat,
+    alpha: f64,
+    imm: &mut GPUImmediate,
+) {
+    if alpha == 0.0 {
+        return;
+    }
+    let flat_texture_shader = shader::builtins::get_flat_texture_shader()
+        .as_ref()
+        .unwrap();
+
+    flat_texture_shader.use_shader();
+    let translated_mat = glm::translate(&glm::identity(), pos);
+    let rotated_mat = {
+        let rotation_axis = glm::cross(&glm::vec3(0.0, 1.0, 0.0), normal);
+        let rotation_angle =
+            (glm::dot(&glm::vec3(0.0, 1.0, 0.0), normal) / glm::length(normal)).acos();
+        glm::rotate(&translated_mat, rotation_angle, &rotation_axis)
+    };
+    let model = glm::convert(glm::scale(&rotated_mat, scale));
+    flat_texture_shader.set_mat4("model\0", &model);
+    flat_texture_shader.set_int("image\0", 31);
+    flat_texture_shader.set_float("alpha\0", alpha as _);
+    image.activate(31);
+
+    let format = imm.get_cleared_vertex_format();
+    let pos_attr = format.add_attribute(
+        "in_pos\0".to_string(),
+        GPUVertCompType::F32,
+        3,
+        GPUVertFetchMode::Float,
+    );
+    let uv_attr = format.add_attribute(
+        "in_uv\0".to_string(),
+        GPUVertCompType::F32,
+        2,
+        GPUVertFetchMode::Float,
+    );
+
+    imm.begin(GPUPrimType::Tris, 6, flat_texture_shader);
+
+    get_plane_1m_vert_list_f32().iter().for_each(|(pos, uv)| {
+        imm.attr_2f(uv_attr, uv[0], uv[1]);
+        imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+    });
+
+    imm.end();
 }
