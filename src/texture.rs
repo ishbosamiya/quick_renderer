@@ -241,6 +241,26 @@ impl TextureRGBAFloat {
             (uv[1] * self.height as f64) as _,
         )
     }
+
+    /// Set the texture rgbafloat's id.
+    ///
+    /// # Safety
+    ///
+    /// ID is a unique identifier for this set of data, it must change
+    /// only when data changes thus it is unlikely that the id must be
+    /// explicitly set. The only time it should be set explicitly is
+    /// if some id is assigned to some other data and the id is used
+    /// to check if the 2 are equal, then when that other data changes
+    /// and the same change is updated to this data, the id must be
+    /// set.
+    pub unsafe fn set_id(&mut self, id: usize) {
+        self.id = id;
+    }
+
+    /// Get texture rgbafloat's id.
+    pub fn get_id(&self) -> usize {
+        self.id
+    }
 }
 
 impl Rasterize for TextureRGBAFloat {
