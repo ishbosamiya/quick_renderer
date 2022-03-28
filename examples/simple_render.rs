@@ -22,36 +22,20 @@ use quick_renderer::mesh::simple;
 use quick_renderer::mesh::{MeshDrawData, MeshUseShader};
 use quick_renderer::shader;
 
-pub struct PreApplication {
+pub struct Application {
+    egui: EguiBackend,
+    imm: Rc<RefCell<GPUImmediate>>,
+
+    last_cursor: (f64, f64),
+
     camera: Camera,
+    infinite_grid: InfiniteGrid,
+
+    mesh: &'static simple::Mesh,
 }
 
-impl Default for PreApplication {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl PreApplication {
-    pub fn new() -> Self {
-        Self {
-            camera: Camera::new(
-                glm::vec3(0.0, 0.0, 3.0),
-                glm::vec3(0.0, 1.0, 0.0),
-                -90.0,
-                0.0,
-                45.0,
-                None,
-            ),
-        }
-    }
-}
-
-impl App for PreApplication {
-    fn init(
-        self,
-        environment: &mut Environment,
-    ) -> Result<Box<dyn App>, Box<dyn std::error::Error>> {
+impl App for Application {
+    fn init(environment: &mut Environment) -> Result<Self, Box<dyn std::error::Error>> {
         shader::builtins::display_uniform_and_attribute_info();
 
         // setup the egui backend
@@ -70,49 +54,21 @@ impl App for PreApplication {
             .insert(TextStyle::Small, (FontFamily::Proportional, 15.0));
         egui.get_egui_ctx().set_fonts(fonts);
 
-        // Create a [`Application`]
-        Ok(Box::new(Application {
+        Ok(Application {
             egui,
             imm: Rc::new(RefCell::new(GPUImmediate::new())),
             last_cursor: environment.window.get_cursor_pos(),
-            camera: self.camera,
+            camera: Camera::new(
+                glm::vec3(0.0, 0.0, 3.0),
+                glm::vec3(0.0, 1.0, 0.0),
+                -90.0,
+                0.0,
+                45.0,
+                None,
+            ),
             infinite_grid: InfiniteGrid::default(),
             mesh: mesh::builtins::get_cube_subd_00(),
-        }))
-    }
-
-    fn update(&mut self, _environment: &mut Environment) -> Result<(), Box<dyn std::error::Error>> {
-        unreachable!("Never called since `init()` returns a different [`App`]")
-    }
-
-    fn handle_window_event(
-        &mut self,
-        _event: &glfw::WindowEvent,
-        _window: &mut glfw::Window,
-        _key_mods: &glfw::Modifiers,
-    ) {
-        unreachable!("Never called since `init()` returns a different [`App`]")
-    }
-}
-
-pub struct Application {
-    egui: EguiBackend,
-    imm: Rc<RefCell<GPUImmediate>>,
-
-    last_cursor: (f64, f64),
-
-    camera: Camera,
-    infinite_grid: InfiniteGrid,
-
-    mesh: &'static simple::Mesh,
-}
-
-impl App for Application {
-    fn init(
-        self,
-        _environment: &mut Environment,
-    ) -> Result<Box<dyn App>, Box<dyn std::error::Error>> {
-        unreachable!("Never called since `init()` was called for [`PreApplication`] which created [`Application`] aka [`Self`]")
+        })
     }
 
     fn update(&mut self, environment: &mut Environment) -> Result<(), Box<dyn std::error::Error>> {
@@ -281,6 +237,6 @@ impl App for Application {
 fn main() {
     Environment::new("Simple Render")
         .unwrap()
-        .run(PreApplication::new())
+        .run::<Application>()
         .unwrap();
 }

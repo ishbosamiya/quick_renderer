@@ -43,28 +43,19 @@ impl From<glfw::Error> for Error {
 }
 
 /// Implementing this trait is the way to create a simple application.
-///
-/// TODO: need to find a better way to handle [`App::init()`], it can
-/// get confusing.
 pub trait App {
-    /// The initialization of the application. This is run before
-    /// entering the update loop.
+    /// The initialization of the application. This is the entry point
+    /// for the application through the creation of the application.
     ///
-    /// It consumes the [`App`] and expects the user to return an
-    /// [`App`]. This allows the user to modifify the structure of the
-    /// [`App`]. This is especially useful when parts of the app need
-    /// to be initialized after the [`Environment`] has been
-    /// created. A common way to handle it is to have a
-    /// `PreApplication` struct that implements [`App`] and have a
-    /// `Application` struct which too implements [`App`] where
-    /// `PreApplication` is a subset of `Application`.
+    /// Initialization of certain components of the application
+    /// sometimes requires the [`Environment`] to already be
+    /// initialized, which is given through `environment`.
     ///
     /// If an error is returned, the application will quit and exit
     /// out of the environment with the error provided.
-    fn init(
-        self,
-        environment: &mut Environment,
-    ) -> Result<Box<dyn App>, Box<dyn std::error::Error>>;
+    fn init(environment: &mut Environment) -> Result<Self, Box<dyn std::error::Error>>
+    where
+        Self: std::marker::Sized;
 
     /// Run during the update loop. Guarenteed to be run once per
     /// frame.
@@ -138,14 +129,21 @@ impl Environment {
         })
     }
 
-    /// Run the environment with the given [`App`].
+    /// Run the environment with the given [`App`]. The [`App`] is
+    /// given through a generic argument.
     ///
     /// Exits if `app` returns an [`Result::Err(_)`] or the window of
     /// the application closes.
-    pub fn run(mut self, app: impl App) -> Result<(), Error> {
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// Environment::new("Simple Render")?.run::<Application>()?
+    /// ```
+    pub fn run<T: App>(mut self) -> Result<(), Error> {
         let mut key_mods = glfw::Modifiers::empty();
 
-        let mut app = app.init(&mut self).map_err(|err| Error::App(err))?;
+        let mut app = T::init(&mut self).map_err(|err| Error::App(err))?;
 
         while !self.window.should_close() {
             self.glfw.poll_events();
