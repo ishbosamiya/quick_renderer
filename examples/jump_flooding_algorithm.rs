@@ -1,6 +1,5 @@
 extern crate image;
 
-use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
 
@@ -66,18 +65,32 @@ fn main() {
     // setup the egui backend
     let mut egui = EguiBackend::new(&mut window, &mut glfw);
 
-    let mut fonts = FontDefinitions::default();
     // larger text
-    fonts
-        .family_and_size
-        .insert(TextStyle::Button, (FontFamily::Proportional, 18.0));
-    fonts
-        .family_and_size
-        .insert(TextStyle::Body, (FontFamily::Proportional, 18.0));
-    fonts
-        .family_and_size
-        .insert(TextStyle::Small, (FontFamily::Proportional, 15.0));
-    egui.get_egui_ctx().set_fonts(fonts);
+    let mut style = (*egui.get_egui_ctx().style()).clone();
+    style.text_styles = [
+        (
+            egui::TextStyle::Heading,
+            egui::FontId::new(18.0, egui::FontFamily::Proportional),
+        ),
+        (
+            egui::TextStyle::Body,
+            egui::FontId::new(16.0, egui::FontFamily::Proportional),
+        ),
+        (
+            egui::TextStyle::Monospace,
+            egui::FontId::new(14.0, egui::FontFamily::Monospace),
+        ),
+        (
+            egui::TextStyle::Button,
+            egui::FontId::new(16.0, egui::FontFamily::Proportional),
+        ),
+        (
+            egui::TextStyle::Small,
+            egui::FontId::new(14.0, egui::FontFamily::Proportional),
+        ),
+    ]
+    .into();
+    egui.get_egui_ctx().set_style(style);
 
     let mesh = mesh::builtins::get_monkey_subd_01();
 

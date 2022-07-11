@@ -2,7 +2,6 @@ use std::cell::RefCell;
 use std::convert::TryInto;
 use std::rc::Rc;
 
-use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
 use glfw::{Action, Key};
 
@@ -41,18 +40,32 @@ impl App for Application {
         // setup the egui backend
         let egui = EguiBackend::new(&mut environment.window, &mut environment.glfw);
 
-        let mut fonts = FontDefinitions::default();
         // larger text
-        fonts
-            .family_and_size
-            .insert(TextStyle::Button, (FontFamily::Proportional, 18.0));
-        fonts
-            .family_and_size
-            .insert(TextStyle::Body, (FontFamily::Proportional, 18.0));
-        fonts
-            .family_and_size
-            .insert(TextStyle::Small, (FontFamily::Proportional, 15.0));
-        egui.get_egui_ctx().set_fonts(fonts);
+        let mut style = (*egui.get_egui_ctx().style()).clone();
+        style.text_styles = [
+            (
+                egui::TextStyle::Heading,
+                egui::FontId::new(18.0, egui::FontFamily::Proportional),
+            ),
+            (
+                egui::TextStyle::Body,
+                egui::FontId::new(16.0, egui::FontFamily::Proportional),
+            ),
+            (
+                egui::TextStyle::Monospace,
+                egui::FontId::new(14.0, egui::FontFamily::Monospace),
+            ),
+            (
+                egui::TextStyle::Button,
+                egui::FontId::new(16.0, egui::FontFamily::Proportional),
+            ),
+            (
+                egui::TextStyle::Small,
+                egui::FontId::new(14.0, egui::FontFamily::Proportional),
+            ),
+        ]
+        .into();
+        egui.get_egui_ctx().set_style(style);
 
         Ok(Application {
             egui,
@@ -183,6 +196,8 @@ impl App for Application {
         window: &mut glfw::Window,
         _key_mods: &glfw::Modifiers,
     ) {
+        self.egui.handle_event(event, window);
+
         let cursor = window.get_cursor_pos();
         match event {
             glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
