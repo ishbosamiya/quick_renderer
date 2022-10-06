@@ -39,85 +39,34 @@ pub struct Camera {
 
     /// camera's sensor
     sensor: Option<Sensor>,
-}
 
-/// Camera sensor
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct Sensor {
-    /// sensor width
-    width: f64,
-    /// sensor height
-    height: f64,
-    /// aspect ratio of the sensor, width of the sensor with respect
-    /// to the height of the aspect
-    aspect_ratio: f64,
-}
-
-impl Sensor {
-    /// Create a new [`Sensor`] given the width and height of the
-    /// sensor.
-    pub fn new(width: f64, height: f64) -> Self {
-        Self {
-            width,
-            height,
-            aspect_ratio: width / height,
-        }
-    }
-
-    /// Create a new [`Sensor`] given the width and aspect ratio of
-    /// the sensor.
-    pub fn from_width(width: f64, aspect_ratio: f64) -> Self {
-        Self {
-            width,
-            height: width / aspect_ratio,
-            aspect_ratio,
-        }
-    }
-
-    /// Create a new [`Sensor`] given the height and aspect ratio of
-    /// the sensor.
-    pub fn from_height(height: f64, aspect_ratio: f64) -> Self {
-        Self {
-            width: height * aspect_ratio,
-            height,
-            aspect_ratio,
-        }
-    }
-
-    /// Get sensor's width.
-    pub fn get_width(&self) -> f64 {
-        self.width
-    }
-
-    /// Get sensor's height.
-    pub fn get_height(&self) -> f64 {
-        self.height
-    }
-
-    /// Get sensor's aspect ratio.
-    pub fn get_aspect_ratio(&self) -> f64 {
-        self.aspect_ratio
-    }
-
-    /// Change sensor's width while keeping aspect ratio the same
-    pub fn change_width(&mut self, width: f64) {
-        *self = Self::from_width(width, self.get_aspect_ratio());
-    }
-
-    /// Change sensor's height while keeping aspect ratio the same
-    pub fn change_height(&mut self, height: f64) {
-        *self = Self::from_height(height, self.get_aspect_ratio());
-    }
-
-    /// Change sensor's aspect ratio while keeping sensor width
-    /// constant. Reflects the aspect ratio change through the
-    /// sensor's height
-    pub fn change_aspect_ratio(&mut self, aspect_ratio: f64) {
-        *self = Self::from_width(self.get_width(), aspect_ratio);
-    }
+    /// Is FPS mode active?
+    #[serde(skip, default = "Camera::default_fps_mode")]
+    fps_mode: bool,
+    /// Movement speed when FPS mode is active.
+    #[serde(default = "Camera::default_fps_movement_speed")]
+    fps_movement_speed: f64,
+    /// Rotation speed when FPS mode is active.
+    #[serde(default = "Camera::default_fps_rotation_speed")]
+    fps_rotation_speed: f64,
 }
 
 impl Camera {
+    /// Default fps_mode.
+    const fn default_fps_mode() -> bool {
+        false
+    }
+
+    /// Default fps_movement_speed.
+    const fn default_fps_movement_speed() -> f64 {
+        5.0
+    }
+
+    /// Default fps_rotation_speed.
+    const fn default_fps_rotation_speed() -> f64 {
+        6.0
+    }
+
     /// Create new camera
     ///
     /// `sensor` is generally set to [`None`] for most camera
@@ -141,6 +90,9 @@ impl Camera {
             fov,
             near_plane: 0.1,
             far_plane: 1000.0,
+            fps_mode: Self::default_fps_mode(),
+            fps_movement_speed: Self::default_fps_movement_speed(),
+            fps_rotation_speed: Self::default_fps_rotation_speed(),
             sensor,
         };
 
@@ -491,6 +443,112 @@ impl Camera {
     /// Set the camera's far plane.
     pub fn set_far_plane(&mut self, far_plane: f64) {
         self.far_plane = far_plane;
+    }
+
+    /// Is FPS mode active?
+    pub fn get_fps_mode(&self) -> bool {
+        self.fps_mode
+    }
+
+    /// Set the FPS mode of the camera.
+    pub fn set_fps_mode(&mut self, fps_mode: bool) {
+        self.fps_mode = fps_mode;
+    }
+
+    /// Get the movement speed for when FPS mode is active.
+    pub fn get_fps_movement_speed(&self) -> f64 {
+        self.fps_movement_speed
+    }
+
+    /// Set the FPS movement speed of the camera.
+    pub fn set_fps_movement_speed(&mut self, fps_movement_speed: f64) {
+        self.fps_movement_speed = fps_movement_speed;
+    }
+
+    /// Get the rotation speed for when FPS mode is active.
+    pub fn get_fps_rotation_speed(&self) -> f64 {
+        self.fps_rotation_speed
+    }
+
+    /// Set the FPS rotation speed of the camera.
+    pub fn set_fps_rotation_speed(&mut self, fps_rotation_speed: f64) {
+        self.fps_rotation_speed = fps_rotation_speed;
+    }
+}
+
+/// Camera sensor
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct Sensor {
+    /// sensor width
+    width: f64,
+    /// sensor height
+    height: f64,
+    /// aspect ratio of the sensor, width of the sensor with respect
+    /// to the height of the aspect
+    aspect_ratio: f64,
+}
+
+impl Sensor {
+    /// Create a new [`Sensor`] given the width and height of the
+    /// sensor.
+    pub fn new(width: f64, height: f64) -> Self {
+        Self {
+            width,
+            height,
+            aspect_ratio: width / height,
+        }
+    }
+
+    /// Create a new [`Sensor`] given the width and aspect ratio of
+    /// the sensor.
+    pub fn from_width(width: f64, aspect_ratio: f64) -> Self {
+        Self {
+            width,
+            height: width / aspect_ratio,
+            aspect_ratio,
+        }
+    }
+
+    /// Create a new [`Sensor`] given the height and aspect ratio of
+    /// the sensor.
+    pub fn from_height(height: f64, aspect_ratio: f64) -> Self {
+        Self {
+            width: height * aspect_ratio,
+            height,
+            aspect_ratio,
+        }
+    }
+
+    /// Get sensor's width.
+    pub fn get_width(&self) -> f64 {
+        self.width
+    }
+
+    /// Get sensor's height.
+    pub fn get_height(&self) -> f64 {
+        self.height
+    }
+
+    /// Get sensor's aspect ratio.
+    pub fn get_aspect_ratio(&self) -> f64 {
+        self.aspect_ratio
+    }
+
+    /// Change sensor's width while keeping aspect ratio the same
+    pub fn change_width(&mut self, width: f64) {
+        *self = Self::from_width(width, self.get_aspect_ratio());
+    }
+
+    /// Change sensor's height while keeping aspect ratio the same
+    pub fn change_height(&mut self, height: f64) {
+        *self = Self::from_height(height, self.get_aspect_ratio());
+    }
+
+    /// Change sensor's aspect ratio while keeping sensor width
+    /// constant. Reflects the aspect ratio change through the
+    /// sensor's height
+    pub fn change_aspect_ratio(&mut self, aspect_ratio: f64) {
+        *self = Self::from_width(self.get_width(), aspect_ratio);
     }
 }
 
