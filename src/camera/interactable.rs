@@ -1,4 +1,4 @@
-use super::Camera;
+use super::{Camera, Direction};
 
 use std::convert::TryFrom;
 
@@ -19,6 +19,9 @@ pub struct InteractableCamera {
     /// Previous frame's cursor position.
     #[serde(skip)]
     last_cursor: Option<(f64, f64)>,
+    /// Previous frame's [`std::time::Instant::now()`].
+    #[serde(skip)]
+    last_frame_instant: Option<std::time::Instant>,
 }
 
 impl InteractableCamera {
@@ -37,6 +40,7 @@ impl InteractableCamera {
             fps_movement_speed: 5.0,
             fps_rotation_speed: 6.0,
             last_cursor: None,
+            last_frame_instant: None,
         }
     }
 
@@ -59,6 +63,11 @@ impl InteractableCamera {
     ) -> bool {
         let cursor = window.get_cursor_pos();
         let last_cursor = self.last_cursor.unwrap_or(cursor);
+        let last_frame_instant = self.last_frame_instant;
+        let delta_time = last_frame_instant
+            .as_ref()
+            .map(|last_frame_instant| last_frame_instant.elapsed().as_secs_f64().min(1.0 / 30.0))
+            .unwrap_or(1.0 / 30.0);
 
         let render_size = window.get_size();
         let render_width = usize::try_from(render_size.0).unwrap();
@@ -89,7 +98,69 @@ impl InteractableCamera {
 
         let res = if !res {
             if self.fps_mode {
-                todo!()
+                self.camera.fps_rotate(
+                    cursor.0 - last_cursor.0,
+                    last_cursor.1 - cursor.1,
+                    self.fps_rotation_speed,
+                    delta_time,
+                );
+
+                match event {
+                    glfw::WindowEvent::Key(
+                        glfw::Key::PageUp,
+                        _,
+                        glfw::Action::Press,
+                        glfw::Modifiers::Control | glfw::Modifiers::Shift,
+                    ) => {
+                        self.fps_movement_speed += 0.3;
+                    }
+                    glfw::WindowEvent::Key(
+                        glfw::Key::PageDown,
+                        _,
+                        glfw::Action::Press,
+                        glfw::Modifiers::Control | glfw::Modifiers::Shift,
+                    ) => {
+                        self.fps_movement_speed -= 0.3;
+                        // clamp the bottom value
+                        self.fps_movement_speed = self.fps_movement_speed.max(0.1);
+                    }
+                    _ => {}
+                };
+
+                let movement_speed = match event {
+                    glfw::WindowEvent::Key(_, _, _, glfw::Modifiers::Shift) => {
+                        // reduce speed
+                        Some(self.fps_movement_speed / 2.0)
+                    }
+                    glfw::WindowEvent::Key(_, _, _, glfw::Modifiers::Control) => {
+                        // increase speed
+                        Some(self.fps_movement_speed)
+                    }
+                    glfw::WindowEvent::Key(_, _, _, mods) if mods.is_empty() => {
+                        // no change in speed
+                        Some(self.fps_movement_speed)
+                    }
+                    _ => {
+                        // no movement
+                        None
+                    }
+                };
+
+                if let Some(movement_speed) = movement_speed {
+                    let direction = match event {
+                        glfw::WindowEvent::Key(glfw::Key::W, _, _, _) => Some(Direction::Forward),
+                        glfw::WindowEvent::Key(glfw::Key::S, _, _, _) => Some(Direction::Backward),
+                        glfw::WindowEvent::Key(glfw::Key::A, _, _, _) => Some(Direction::Left),
+                        glfw::WindowEvent::Key(glfw::Key::D, _, _, _) => Some(Direction::Right),
+                        _ => None,
+                    };
+
+                    if let Some(direction) = direction {
+                        self.camera.fps_move(direction, movement_speed, delta_time);
+                    }
+                }
+
+                true
             } else {
                 let mut pan = false;
                 let mut move_foward = false;
@@ -140,6 +211,7 @@ impl InteractableCamera {
         };
 
         self.last_cursor = Some(cursor);
+        self.last_frame_instant = Some(std::time::Instant::now());
 
         res
     }
