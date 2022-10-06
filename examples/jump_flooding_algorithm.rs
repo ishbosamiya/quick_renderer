@@ -144,7 +144,7 @@ fn main() {
         );
 
         let projection_matrix =
-            &glm::convert(camera.get_projection_matrix(window_width, window_height));
+            &glm::convert(camera.get_perspective_projection_matrix(window_width, window_height));
 
         // Shader stuff
         shader::builtins::setup_shaders(&camera, window_width, window_height);
@@ -194,9 +194,10 @@ fn main() {
             smooth_color_3d_shader.use_shader();
             smooth_color_3d_shader.set_mat4(
                 "projection\0",
-                &glm::convert(
-                    camera.get_projection_matrix(test_image.get_width(), test_image.get_height()),
-                ),
+                &glm::convert(camera.get_perspective_projection_matrix(
+                    test_image.get_width(),
+                    test_image.get_height(),
+                )),
             );
             smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
             mesh.draw(&MeshDrawData::new(
