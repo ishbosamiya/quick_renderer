@@ -11,6 +11,7 @@ use crate::{
     util,
 };
 
+/// Camera.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Camera {
     /// position of the camera in 3D space
@@ -53,6 +54,8 @@ pub struct Sensor {
 }
 
 impl Sensor {
+    /// Create a new [`Sensor`] given the width and height of the
+    /// sensor.
     pub fn new(width: f64, height: f64) -> Self {
         Self {
             width,
@@ -61,6 +64,8 @@ impl Sensor {
         }
     }
 
+    /// Create a new [`Sensor`] given the width and aspect ratio of
+    /// the sensor.
     pub fn from_width(width: f64, aspect_ratio: f64) -> Self {
         Self {
             width,
@@ -69,6 +74,8 @@ impl Sensor {
         }
     }
 
+    /// Create a new [`Sensor`] given the height and aspect ratio of
+    /// the sensor.
     pub fn from_height(height: f64, aspect_ratio: f64) -> Self {
         Self {
             width: height * aspect_ratio,
@@ -496,6 +503,7 @@ pub struct CameraDrawData {
 }
 
 impl CameraDrawData {
+    /// Create a new [`CameraDrawData`] struct.
     pub fn new(
         imm: Rc<RefCell<GPUImmediate>>,
         image: Option<Rc<RefCell<TextureRGBAFloat>>>,
