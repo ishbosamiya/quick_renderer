@@ -1122,12 +1122,7 @@ where
         // TODO(ish): add multithreading support
         let use_threading = false;
         let root_node_len = self.overlap_thread_num();
-        let _thread_num;
-        if use_threading {
-            _thread_num = root_node_len;
-        } else {
-            _thread_num = 1;
-        }
+        let _thread_num = if use_threading { root_node_len } else { 1 };
 
         assert!(
             !(self.axis != other.axis

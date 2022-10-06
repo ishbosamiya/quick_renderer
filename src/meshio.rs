@@ -209,12 +209,11 @@ impl MeshIO {
                         // positions, texture coordinates and normals
                         3 => {
                             let pos_index: usize = indices[0].parse().unwrap();
-                            let uv_index: usize;
-                            if !indices[1].is_empty() {
-                                uv_index = indices[1].parse().unwrap();
+                            let uv_index: usize = if !indices[1].is_empty() {
+                                indices[1].parse().unwrap()
                             } else {
-                                uv_index = usize::MAX;
-                            }
+                                usize::MAX
+                            };
                             let normal_index: usize = indices[2].parse().unwrap();
                             if uv_index == usize::MAX {
                                 face_i.push((pos_index - 1, uv_index, normal_index - 1));
