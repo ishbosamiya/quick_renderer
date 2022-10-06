@@ -158,46 +158,77 @@ impl Camera {
         self.up = glm::normalize(&glm::cross(&self.right, &front));
     }
 
+    /// Get world up.
     pub fn get_world_up(&self) -> &glm::DVec3 {
         &self.world_up
     }
 
+    /// Get camera position.
     pub fn get_position(&self) -> glm::DVec3 {
         self.position
     }
 
+    /// Get camera front vector.
     pub fn get_front(&self) -> glm::DVec3 {
         self.front
     }
 
+    /// Get camera right vector.
     pub fn get_right(&self) -> glm::DVec3 {
         self.right
     }
 
+    /// Get camera up vector.
     pub fn get_up(&self) -> glm::DVec3 {
         self.up
     }
 
+    /// Get camera near plane distance.
     pub fn get_near_plane(&self) -> f64 {
         self.near_plane
     }
 
+    /// Get camera far plane distance.
     pub fn get_far_plane(&self) -> f64 {
         self.far_plane
     }
 
+    /// Get camera yaw.
     pub fn get_yaw(&self) -> f64 {
         self.yaw
     }
 
+    /// Get camera pitch.
     pub fn get_pitch(&self) -> f64 {
         self.pitch
     }
 
+    /// Get camera field of view (fov) (in degrees).
+    ///
+    /// Note: this is the vertical fov of the camera. To get the
+    /// horizontal fov, convert using [`vfov_to_hfov()`].
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # let camera = Camera::new(
+    /// #     glm::vec3(0.0, 0.0, 0.0),
+    /// #     glm::vec3(0.0, 1.0, 0.0),
+    /// #     -90.0,
+    /// #     0.0,
+    /// #     45.0,
+    /// #     None,
+    /// # );
+    /// let vfov_deg = camera.get_fov();
+    /// let vfov_rad = vfov_deg.to_radians();
+    /// let hfov_rad = vfov_to_hfov(vfov, 1.0);
+    /// assert!((vfov_rad - hfov_rad).abs() < 1e-5);
+    /// ```
     pub fn get_fov(&self) -> f64 {
         self.fov
     }
 
+    /// Get the camera focal length.
     pub fn get_focal_length(&self) -> Option<f64> {
         Some(util::fov_to_focal_length(
             self.get_fov().to_radians(),
@@ -220,11 +251,22 @@ impl Camera {
         &mut self.sensor
     }
 
+    /// Get the view matrix.
     pub fn get_view_matrix(&self) -> glm::DMat4 {
         glm::look_at(&self.position, &(self.position + self.front), &self.up)
     }
 
+    /// Get the perspective projection matrix.
+    #[deprecated(
+        since = "0.5.0+dev",
+        note = "It is recommended to use get_perspective_projection_matrix() instead."
+    )]
     pub fn get_projection_matrix(&self, width: usize, height: usize) -> glm::DMat4 {
+        self.get_perspective_projection_matrix(width, height)
+    }
+
+    /// Get the perspective projection matrix.
+    pub fn get_perspective_projection_matrix(&self, width: usize, height: usize) -> glm::DMat4 {
         glm::perspective(
             width as f64 / height as f64,
             self.fov.to_radians(),
@@ -233,6 +275,7 @@ impl Camera {
         )
     }
 
+    /// Get the orthogonal projection matrix.
     pub fn get_ortho_matrix(&self, width: usize, height: usize) -> glm::DMat4 {
         glm::ortho(
             0.0,
@@ -244,6 +287,7 @@ impl Camera {
         )
     }
 
+    /// Pan the camera.
     #[allow(clippy::too_many_arguments)]
     pub fn pan(
         &mut self,
@@ -266,8 +310,9 @@ impl Camera {
         let clip_end_x = mouse_end_x * 2.0 / width as f64 - 1.0;
         let clip_end_y = 1.0 - mouse_end_y * 2.0 / height as f64;
 
-        let inverse_mvp =
-            glm::inverse(&(self.get_projection_matrix(width, height) * self.get_view_matrix()));
+        let inverse_mvp = glm::inverse(
+            &(self.get_perspective_projection_matrix(width, height) * self.get_view_matrix()),
+        );
         let out_vector = inverse_mvp * glm::vec4(clip_x, clip_y, 0.0, 1.0);
         let world_pos = glm::vec3(
             out_vector.x / out_vector.w,
@@ -289,6 +334,8 @@ impl Camera {
         self.position -= offset;
     }
 
+    /// Rotate the camera with respect to the camera origin (camera
+    /// position).
     pub fn rotate_wrt_camera_origin(
         &mut self,
         mouse_start_x: f64,
@@ -315,6 +362,7 @@ impl Camera {
         self.update_camera_vectors();
     }
 
+    /// Move the camera forward.
     pub fn move_forward(&mut self, mouse_start_y: f64, mouse_end_y: f64, height: usize) {
         let clip_y = 1.0 - mouse_start_y * 2.0 / height as f64;
         let clip_end_y = 1.0 - mouse_end_y * 2.0 / height as f64;
@@ -324,6 +372,7 @@ impl Camera {
         self.position += self.front * move_by;
     }
 
+    /// Zoom the camera. This changes the field of view of the camera.
     pub fn zoom(&mut self, scroll_y: f64) {
         let min = 1.0;
         let max = 90.0;
@@ -338,6 +387,9 @@ impl Camera {
         }
     }
 
+    /// Get the direction of the ray if cast from the camera position
+    /// towards the point on the camera plane that is determined by
+    /// the given x, y coordinates.
     pub fn get_raycast_direction(
         &mut self,
         mouse_x: f64,
@@ -350,7 +402,8 @@ impl Camera {
 
         let ray_clip = glm::vec4(x, y, -1.0, 1.0);
 
-        let ray_eye = glm::inverse(&self.get_projection_matrix(width, height)) * ray_clip;
+        let ray_eye =
+            glm::inverse(&self.get_perspective_projection_matrix(width, height)) * ray_clip;
         let ray_eye = glm::vec4(ray_eye[0], ray_eye[1], -1.0, 0.0);
 
         let ray_wor = glm::inverse(&self.get_view_matrix()) * ray_eye;
@@ -398,16 +451,25 @@ impl Camera {
             .to_degrees();
     }
 
+    /// Set the yaw of the camera.
+    ///
+    /// If yaw and pitch of the camera must be set, it is recommended
+    /// to use [`Self::set_yaw_and_pitch()`].
     pub fn set_yaw(&mut self, yaw: f64) {
         self.yaw = yaw;
         self.update_camera_vectors();
     }
 
+    /// Set the pitch of the camera.
+    ///
+    /// If yaw and pitch of the camera must be set, it is recommended
+    /// to use [`Self::set_yaw_and_pitch()`].
     pub fn set_pitch(&mut self, pitch: f64) {
         self.pitch = pitch;
         self.update_camera_vectors();
     }
 
+    /// Set the yaw and pitch of the camera.
     pub fn set_yaw_and_pitch(&mut self, yaw: f64, pitch: f64) {
         self.yaw = yaw;
         self.pitch = pitch;
@@ -425,6 +487,7 @@ impl Camera {
     }
 }
 
+/// Camera draw data.
 pub struct CameraDrawData {
     imm: Rc<RefCell<GPUImmediate>>,
     image: Option<Rc<RefCell<TextureRGBAFloat>>>,
@@ -657,4 +720,12 @@ fn draw_triangle(
     imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
     imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
     imm.vertex_3f(pos_attr, p3[0], p3[1], p3[2]);
+}
+
+/// Convert from the given vertical field of view (fov) to the
+/// horizontal fov given the aspect ratio of the frustum.
+///
+/// Note: the fov passed to the function must be in radians.
+pub fn vfov_to_hfov(vfov: f64, aspect: f64) -> f64 {
+    ((vfov * 0.5).tan() * aspect).atan() * 2.0
 }
