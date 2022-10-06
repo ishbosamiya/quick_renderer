@@ -420,6 +420,75 @@ impl Camera {
     pub fn set_far_plane(&mut self, far_plane: f64) {
         self.far_plane = far_plane;
     }
+
+    /// Move the camera in the given direction.
+    ///
+    /// `movement_speed`: Speed with which to move the camera.
+    ///
+    /// `delta_time`: Time between frames to be able to process
+    /// the `movement_speed` correctly. This matters when the FPS
+    /// changes drastically between frames, if not present, it
+    /// lead to moving the camera a different amount each frame
+    /// despite the same requested speed.
+    pub fn fps_move(&mut self, direction: Direction, movement_speed: f64, delta_time: f64) {
+        let distance = movement_speed * delta_time;
+        match direction {
+            Direction::Forward => {
+                self.set_position(self.get_position() + self.get_front() * distance)
+            }
+            Direction::Backward => {
+                self.set_position(self.get_position() - self.get_front() * distance)
+            }
+            Direction::Left => self.set_position(self.get_position() - self.get_right() * distance),
+            Direction::Right => {
+                self.set_position(self.get_position() + self.get_right() * distance)
+            }
+        }
+    }
+
+    /// Rotate the camera in a FPS like manner.
+    ///
+    /// `offset_x`: Distance in the camera plane (units to be
+    /// determined but most likely the viewport pixels) moved in
+    /// the x direction. This is often the distance in pixels
+    /// moved by the cursor between the previous frame and the
+    /// current frame.
+    ///
+    /// `offset_y`: Distance in the camera plane (units to be
+    /// determined but most likely the viewport pixels) moved in
+    /// the y direction. This is often the distance in pixels
+    /// moved by the cursor between the previous frame and the
+    /// current frame.
+    ///
+    /// `rotation_speed`: Speed with which the camera should
+    /// rotate.
+    ///
+    /// `delta_time`: Time between frames to be able to process
+    /// the `rotation_speed` correctly. This matters when the FPS
+    /// changes drastically between frames, if not present, it
+    /// will lead to the camera rotating a different amount each
+    /// frame despite the same requested speed.
+    pub fn fps_rotate(
+        &mut self,
+        offset_x: f64,
+        offset_y: f64,
+        rotation_speed: f64,
+        delta_time: f64,
+    ) {
+        let offset_x = offset_x * rotation_speed * delta_time;
+        let offset_y = offset_y * rotation_speed * delta_time;
+
+        self.set_yaw_and_pitch(self.get_yaw() + offset_x, self.get_pitch() + offset_y);
+    }
+}
+
+/// Direction.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum Direction {
+    Forward,
+    Backward,
+    Left,
+    Right,
 }
 
 /// Camera sensor
