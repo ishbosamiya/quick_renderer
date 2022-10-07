@@ -3,11 +3,11 @@ use std::convert::TryInto;
 use std::rc::Rc;
 
 use egui_glfw::EguiBackend;
-use glfw::{Action, Key};
 
 use quick_renderer::app::App;
 use quick_renderer::app::Environment;
 use quick_renderer::camera::Camera;
+use quick_renderer::camera::InteractableCamera;
 use quick_renderer::drawable::Drawable;
 use quick_renderer::egui;
 use quick_renderer::egui_glfw;
@@ -25,9 +25,7 @@ pub struct Application {
     egui: EguiBackend,
     imm: Rc<RefCell<GPUImmediate>>,
 
-    last_cursor: (f64, f64),
-
-    camera: Camera,
+    camera: InteractableCamera,
     infinite_grid: InfiniteGrid,
 
     mesh: &'static simple::Mesh,
@@ -70,21 +68,28 @@ impl App for Application {
         Ok(Application {
             egui,
             imm: Rc::new(RefCell::new(GPUImmediate::new())),
-            last_cursor: environment.window.get_cursor_pos(),
-            camera: Camera::new(
+            camera: InteractableCamera::new(Camera::new(
                 glm::vec3(0.0, 0.0, 3.0),
                 glm::vec3(0.0, 1.0, 0.0),
                 -90.0,
                 0.0,
                 45.0,
                 None,
-            ),
+            )),
             infinite_grid: InfiniteGrid::default(),
             mesh: mesh::builtins::get_cube_subd_00(),
         })
     }
 
     fn update(&mut self, environment: &mut Environment) -> Result<(), Box<dyn std::error::Error>> {
+        if self.camera.get_fps_mode() {
+            environment
+                .window
+                .set_cursor_mode(glfw::CursorMode::Disabled);
+        } else {
+            environment.window.set_cursor_mode(glfw::CursorMode::Normal);
+        }
+
         unsafe {
             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
@@ -97,7 +102,7 @@ impl App for Application {
         );
 
         // Shader stuff
-        shader::builtins::setup_shaders(&self.camera, window_width, window_height);
+        shader::builtins::setup_shaders(self.camera.get_inner(), window_width, window_height);
 
         unsafe {
             gl::Disable(gl::BLEND);
@@ -198,54 +203,13 @@ impl App for Application {
     ) {
         self.egui.handle_event(event, window);
 
-        let cursor = window.get_cursor_pos();
-        match event {
-            glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
-                window.set_should_close(true);
-            }
-
-            glfw::WindowEvent::FramebufferSize(width, height) => unsafe {
+        if let glfw::WindowEvent::FramebufferSize(width, height) = event {
+            unsafe {
                 gl::Viewport(0, 0, *width, *height);
-            },
-            glfw::WindowEvent::Scroll(_, scroll_y) => {
-                self.camera.zoom(*scroll_y);
             }
-            _ => {}
         };
 
-        let (window_width, window_height) = window.get_size();
-        let (window_width, window_height): (usize, usize) = (
-            window_width.try_into().unwrap(),
-            window_height.try_into().unwrap(),
-        );
-
-        if window.get_mouse_button(glfw::MouseButtonMiddle) == glfw::Action::Press {
-            if window.get_key(glfw::Key::LeftShift) == glfw::Action::Press {
-                self.camera.pan(
-                    self.last_cursor.0,
-                    self.last_cursor.1,
-                    cursor.0,
-                    cursor.1,
-                    1.0,
-                    window_width,
-                    window_height,
-                );
-            } else if window.get_key(glfw::Key::LeftControl) == glfw::Action::Press {
-                self.camera
-                    .move_forward(self.last_cursor.1, cursor.1, window_height);
-            } else {
-                self.camera.rotate_wrt_camera_origin(
-                    self.last_cursor.0,
-                    self.last_cursor.1,
-                    cursor.0,
-                    cursor.1,
-                    0.1,
-                    false,
-                );
-            }
-        }
-
-        self.last_cursor = cursor;
+        self.camera.interact_glfw_window_event(event, window);
     }
 }
 
