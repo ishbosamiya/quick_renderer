@@ -52,9 +52,16 @@ impl InteractableCamera {
     ///
     /// # Note
     ///
+    /// FPS mode is not as smooth as it should be, use
+    /// [`Self::interact_egui()`] instead.
+    ///
     /// It is important to call this function every frame (if it is
     /// used) since it needs to update some parameters internally
     /// every frame.
+    ///
+    /// TODO: Need to implement and switch to a key state manager
+    /// instead of dealing with glfw events directly. It isn't the
+    /// best way to handle events, thanks [`glfw::Action`].
     pub fn interact_glfw_window_event(
         &mut self,
         event: &glfw::WindowEvent,
@@ -126,36 +133,37 @@ impl InteractableCamera {
                     _ => {}
                 };
 
-                let movement_speed = match event {
-                    glfw::WindowEvent::Key(_, _, _, glfw::Modifiers::Shift) => {
+                let movement_speed =
+                    if window.get_key(glfw::Key::LeftShift) != glfw::Action::Release {
                         // reduce speed
                         Some(self.fps_movement_speed / 2.0)
-                    }
-                    glfw::WindowEvent::Key(_, _, _, glfw::Modifiers::Control) => {
+                    } else if window.get_key(glfw::Key::LeftControl) != glfw::Action::Release {
                         // increase speed
-                        Some(self.fps_movement_speed)
-                    }
-                    glfw::WindowEvent::Key(_, _, _, mods) if mods.is_empty() => {
+                        Some(self.fps_movement_speed * 2.0)
+                    } else if window.get_key(glfw::Key::LeftAlt) == glfw::Action::Release {
                         // no change in speed
                         Some(self.fps_movement_speed)
-                    }
-                    _ => {
+                    } else {
                         // no movement
                         None
-                    }
-                };
-
-                if let Some(movement_speed) = movement_speed {
-                    let direction = match event {
-                        glfw::WindowEvent::Key(glfw::Key::W, _, _, _) => Some(Direction::Forward),
-                        glfw::WindowEvent::Key(glfw::Key::S, _, _, _) => Some(Direction::Backward),
-                        glfw::WindowEvent::Key(glfw::Key::A, _, _, _) => Some(Direction::Left),
-                        glfw::WindowEvent::Key(glfw::Key::D, _, _, _) => Some(Direction::Right),
-                        _ => None,
                     };
 
-                    if let Some(direction) = direction {
-                        self.camera.fps_move(direction, movement_speed, delta_time);
+                if let Some(movement_speed) = movement_speed {
+                    if window.get_key(glfw::Key::W) != glfw::Action::Release {
+                        self.camera
+                            .fps_move(Direction::Forward, movement_speed, delta_time);
+                    }
+                    if window.get_key(glfw::Key::S) != glfw::Action::Release {
+                        self.camera
+                            .fps_move(Direction::Backward, movement_speed, delta_time);
+                    }
+                    if window.get_key(glfw::Key::A) != glfw::Action::Release {
+                        self.camera
+                            .fps_move(Direction::Left, movement_speed, delta_time);
+                    }
+                    if window.get_key(glfw::Key::D) != glfw::Action::Release {
+                        self.camera
+                            .fps_move(Direction::Right, movement_speed, delta_time);
                     }
                 }
 
