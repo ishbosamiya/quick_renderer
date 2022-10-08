@@ -482,11 +482,24 @@ impl Camera {
     }
 
     /// Move the camera to fit the given verts in the camera view.
+    ///
+    /// `camera_width`: Width of the surface that uses this camera to
+    /// render the scene.
+    ///
+    /// `camera_height`: Height of the surface that uses this camera
+    /// to render the scene.
+    ///
+    /// `verts`: Vertices that must fit into the camera.
+    ///
+    /// `margin`: Optional margin to add. It is recommended that the
+    /// margin provided be contained in `0.0..=1.0`. A good default to
+    /// use is `Some(0.3)`.
     pub fn move_to_fit_verts_in_camera_view(
         &mut self,
         camera_width: usize,
         camera_height: usize,
         verts: &[glm::Vec3],
+        margin: Option<f32>,
     ) -> Result<(), FitVertsInCameraViewError> {
         if verts.is_empty() {
             return Err(FitVertsInCameraViewError::NoVertsProvided);
@@ -495,7 +508,7 @@ impl Camera {
         let mut previous_position = self.get_position();
         const MAX_ITERATIONS: usize = 20;
         for _ in 0..MAX_ITERATIONS {
-            self.move_to_fit_verts_in_camera_view_impl(camera_width, camera_height, verts)?;
+            self.move_to_fit_verts_in_camera_view_impl(camera_width, camera_height, verts, margin)?;
             let position = self.get_position();
             if (position[0] - previous_position[0]).abs() < 1e-5
                 && (position[1] - previous_position[1]).abs() < 1e-5
@@ -518,7 +531,9 @@ impl Camera {
         camera_width: usize,
         camera_height: usize,
         verts: &[glm::Vec3],
+        margin: Option<f32>,
     ) -> Result<(), FitVertsInCameraViewError> {
+        let margin = margin.unwrap_or(0.0);
         let view = &glm::convert::<_, glm::Mat4>(self.get_view_matrix());
         let proj = &glm::convert::<_, glm::Mat4>(
             self.get_perspective_projection_matrix(camera_width, camera_height),
@@ -616,6 +631,15 @@ impl Camera {
                 &(inv_proj * glm::vec4(clip_space_vec[0], clip_space_vec[1], -1.0, 1.0));
             glm::normalize(&glm::vec3(view_space_eye[0], view_space_eye[1], -1.0))
         };
+
+        let expand_bounds_by_margin = |min_bounds: &glm::Vec2, max_bounds: &glm::Vec2| {
+            let margin = margin * 0.5;
+            let margin = glm::vec2(margin, margin);
+            (min_bounds - margin, max_bounds + margin)
+        };
+
+        let (clip_space_min_bounds, clip_space_max_bounds) =
+            &expand_bounds_by_margin(clip_space_min_bounds, clip_space_max_bounds);
 
         let view_space_ray_dir_bottom_left = &get_view_space_ray_direction(clip_space_min_bounds);
         let view_space_ray_dir_top_right = &get_view_space_ray_direction(clip_space_max_bounds);

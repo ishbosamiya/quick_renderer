@@ -228,6 +228,7 @@ impl App for Application {
                         window_size.0.try_into().unwrap(),
                         window_size.1.try_into().unwrap(),
                         &verts,
+                        Some(0.3),
                     )
                     .unwrap();
             }
