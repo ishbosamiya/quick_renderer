@@ -121,10 +121,7 @@ impl App for Application {
             .unwrap();
 
         directional_light_shader.use_shader();
-        directional_light_shader.set_mat4(
-            "model\0",
-            &glm::translate(&glm::identity(), &glm::vec3(2.1, 0.0, 0.0)),
-        );
+        directional_light_shader.set_mat4("model\0", &Self::get_mesh_model_matrix(0));
         self.mesh
             .draw(&MeshDrawData::new(
                 self.imm.clone(),
@@ -134,10 +131,7 @@ impl App for Application {
             .unwrap();
 
         smooth_color_3d_shader.use_shader();
-        smooth_color_3d_shader.set_mat4(
-            "model\0",
-            &glm::translate(&glm::identity(), &glm::vec3(-2.1, 0.0, 0.0)),
-        );
+        smooth_color_3d_shader.set_mat4("model\0", &Self::get_mesh_model_matrix(1));
         self.mesh
             .draw(&MeshDrawData::new(
                 self.imm.clone(),
@@ -147,10 +141,7 @@ impl App for Application {
             .unwrap();
 
         face_orientation_shader.use_shader();
-        face_orientation_shader.set_mat4(
-            "model\0",
-            &glm::translate(&glm::identity(), &glm::vec3(0.0, 2.1, 0.0)),
-        );
+        face_orientation_shader.set_mat4("model\0", &Self::get_mesh_model_matrix(2));
         self.mesh
             .draw(&MeshDrawData::new(
                 self.imm.clone(),
@@ -203,13 +194,64 @@ impl App for Application {
     ) {
         self.egui.handle_event(event, window);
 
-        if let glfw::WindowEvent::FramebufferSize(width, height) = event {
-            unsafe {
+        match event {
+            glfw::WindowEvent::FramebufferSize(width, height) => unsafe {
                 gl::Viewport(0, 0, *width, *height);
+            },
+            glfw::WindowEvent::Key(
+                glfw::Key::C,
+                _,
+                glfw::Action::Press,
+                glfw::Modifiers::Shift,
+            ) => {
+                let get_verts = |model: &glm::Mat4| {
+                    self.mesh
+                        .get_nodes()
+                        .iter()
+                        .map(|(_, node)| glm::convert::<_, glm::Vec3>(node.pos))
+                        .map(|pos| model * glm::vec4(pos[0], pos[1], pos[2], 1.0))
+                        .map(|pos| glm::vec4_to_vec3(&pos))
+                        .collect::<Vec<_>>()
+                };
+
+                let verts = get_verts(&Self::get_mesh_model_matrix(0))
+                    .into_iter()
+                    .chain(get_verts(&Self::get_mesh_model_matrix(1)).into_iter())
+                    .chain(get_verts(&Self::get_mesh_model_matrix(2)).into_iter())
+                    .collect::<Vec<_>>();
+
+                let window_size = window.get_size();
+
+                self.camera
+                    .get_inner_mut()
+                    .move_to_fit_verts_in_camera_view(
+                        window_size.0.try_into().unwrap(),
+                        window_size.1.try_into().unwrap(),
+                        &verts,
+                    )
+                    .unwrap();
             }
+            _ => (),
         };
 
         self.camera.interact_glfw_window_event(event, window);
+    }
+}
+
+impl Application {
+    /// Get the model matrix of the mesh given the index of the mesh.
+    ///
+    /// Only 3 model matrices are currently available.
+    fn get_mesh_model_matrix(index: usize) -> glm::Mat4 {
+        if index == 0 {
+            glm::translate(&glm::identity(), &glm::vec3(2.1, 0.0, 0.0))
+        } else if index == 1 {
+            glm::translate(&glm::identity(), &glm::vec3(-2.1, 0.0, 0.0))
+        } else if index == 2 {
+            glm::translate(&glm::identity(), &glm::vec3(0.0, 2.1, 0.0))
+        } else {
+            panic!("unsupported index value for fetching model matrix")
+        }
     }
 }
 
