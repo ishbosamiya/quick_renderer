@@ -2,7 +2,7 @@ pub mod interactable;
 
 pub use interactable::InteractableCamera;
 
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, fmt::Display, rc::Rc};
 
 use serde::{Deserialize, Serialize};
 
@@ -480,7 +480,267 @@ impl Camera {
 
         self.set_yaw_and_pitch(self.get_yaw() + offset_x, self.get_pitch() + offset_y);
     }
+
+    /// Move the camera to fit the given verts in the camera view.
+    pub fn move_to_fit_verts_in_camera_view(
+        &mut self,
+        camera_width: usize,
+        camera_height: usize,
+        verts: &[glm::Vec3],
+    ) -> Result<(), FitVertsInCameraViewError> {
+        if verts.is_empty() {
+            return Err(FitVertsInCameraViewError::NoVertsProvided);
+        }
+
+        let mut previous_position = self.get_position();
+        const MAX_ITERATIONS: usize = 20;
+        for _ in 0..MAX_ITERATIONS {
+            self.move_to_fit_verts_in_camera_view_impl(camera_width, camera_height, verts)?;
+            let position = self.get_position();
+            if (position[0] - previous_position[0]).abs() < 1e-5
+                && (position[1] - previous_position[1]).abs() < 1e-5
+                && (position[2] - previous_position[2]).abs() < 1e-5
+            {
+                return Ok(());
+            }
+            previous_position = position;
+        }
+
+        println!("warning: move to fit verts in camera view didn't terminate successfully");
+
+        Ok(())
+    }
+
+    /// Implementation of a single iteration of
+    /// [`Self::move_to_fit_verts_in_camera_view()`].
+    fn move_to_fit_verts_in_camera_view_impl(
+        &mut self,
+        camera_width: usize,
+        camera_height: usize,
+        verts: &[glm::Vec3],
+    ) -> Result<(), FitVertsInCameraViewError> {
+        let view = &glm::convert::<_, glm::Mat4>(self.get_view_matrix());
+        let proj = &glm::convert::<_, glm::Mat4>(
+            self.get_perspective_projection_matrix(camera_width, camera_height),
+        );
+
+        let calculate_clip_space_bounds_and_view_space_pos_max_z =
+            |view: &glm::Mat4, proj: &glm::Mat4| {
+                verts
+                    .iter()
+                    .map(|pos| {
+                        let view_space_pos = &Self::apply_matrix_vec3_to_vec4(pos, view);
+                        let proj_space_pos = &(proj * view_space_pos);
+                        (proj_space_pos / proj_space_pos[3], *view_space_pos)
+                    })
+                    .fold(
+                        (
+                            glm::vec2(f32::MAX, f32::MAX),
+                            glm::vec2(f32::MIN, f32::MIN),
+                            glm::vec4(f32::MIN, f32::MIN, f32::MIN, f32::MIN),
+                        ),
+                        |(clip_space_min, clip_space_max, view_space_pos_max_z),
+                         (clip_space_pos, view_space_pos)| {
+                            (
+                                glm::min2(&clip_space_min, &glm::vec4_to_vec2(&clip_space_pos)),
+                                glm::max2(&clip_space_max, &glm::vec4_to_vec2(&clip_space_pos)),
+                                if view_space_pos_max_z[2] > view_space_pos[2] {
+                                    view_space_pos_max_z
+                                } else {
+                                    view_space_pos
+                                },
+                            )
+                        },
+                    )
+            };
+
+        let (clip_space_min_bounds, clip_space_max_bounds, view_space_pos_max_z) =
+            &calculate_clip_space_bounds_and_view_space_pos_max_z(view, proj);
+
+        let (view, proj, clip_space_min_bounds, clip_space_max_bounds, view_space_pos_max_z) =
+            &if view_space_pos_max_z[2] >= 0.0 {
+                println!("info: moving camera since mesh center is behind the camera");
+
+                // move the camera so that the mesh is just visible, this
+                // helps prevent scenarios of no intersection (when the camera
+                // is in front of the mesh center plane)
+
+                let inv_view = &glm::inverse(view);
+
+                let new_camera_position = {
+                    // offset the new camera position a smidge along the
+                    // camera front axis
+                    let view_space_new_camera_position = glm::vec4(
+                        0.0,
+                        0.0,
+                        view_space_pos_max_z[2] + 0.1,
+                        view_space_pos_max_z[3],
+                    );
+                    let world_space_new_camera_position =
+                        &(inv_view * view_space_new_camera_position);
+                    glm::convert(glm::vec4_to_vec3(world_space_new_camera_position))
+                };
+
+                self.set_position(new_camera_position);
+
+                let view = &glm::convert::<_, glm::Mat4>(self.get_view_matrix());
+                let proj = &glm::convert::<_, glm::Mat4>(
+                    self.get_perspective_projection_matrix(camera_width, camera_height),
+                );
+
+                let (clip_space_min_bounds, clip_space_max_bounds, view_space_pos_max_z) =
+                    calculate_clip_space_bounds_and_view_space_pos_max_z(view, proj);
+                (
+                    *view,
+                    *proj,
+                    clip_space_min_bounds,
+                    clip_space_max_bounds,
+                    view_space_pos_max_z,
+                )
+            } else {
+                (
+                    *view,
+                    *proj,
+                    *clip_space_min_bounds,
+                    *clip_space_max_bounds,
+                    *view_space_pos_max_z,
+                )
+            };
+
+        let inv_view = &glm::inverse(view);
+        let inv_proj = &glm::inverse(proj);
+
+        let get_view_space_ray_direction = |clip_space_vec: &glm::Vec2| {
+            // take the near plane of the camera
+            let view_space_eye =
+                &(inv_proj * glm::vec4(clip_space_vec[0], clip_space_vec[1], -1.0, 1.0));
+            glm::normalize(&glm::vec3(view_space_eye[0], view_space_eye[1], -1.0))
+        };
+
+        let view_space_ray_dir_bottom_left = &get_view_space_ray_direction(clip_space_min_bounds);
+        let view_space_ray_dir_top_right = &get_view_space_ray_direction(clip_space_max_bounds);
+
+        // the ray origin in the view space is at (0.0, 0.0, 0.0)
+        // since the camera position in the view space is at (0.0,
+        // 0.0, 0.0)
+        let view_space_ray_origin = &glm::vec3(0.0, 0.0, 0.0);
+        // the plane normal in the view space is directed towards the
+        // viewer, which is in the +z direction in this case
+        let view_space_plane_normal = &glm::vec3(0.0, 0.0, 1.0);
+        let view_space_point_on_plane = &glm::vec4_to_vec3(view_space_pos_max_z);
+
+        let view_space_t_bottom_left = Self::ray_plane_intersection(
+            view_space_ray_origin,
+            view_space_ray_dir_bottom_left,
+            view_space_point_on_plane,
+            view_space_plane_normal,
+        );
+
+        let view_space_t_top_right = Self::ray_plane_intersection(
+            view_space_ray_origin,
+            view_space_ray_dir_top_right,
+            view_space_point_on_plane,
+            view_space_plane_normal,
+        );
+
+        if let Some((bl, tr)) =
+            view_space_t_bottom_left.and_then(|bl| view_space_t_top_right.map(|tr| (bl, tr)))
+        {
+            let get_point = |t: f32, direction: &glm::Vec3| view_space_ray_origin + t * direction;
+
+            let view_space_intersection_bottom_left =
+                &get_point(bl, view_space_ray_dir_bottom_left);
+            let view_space_intersection_top_right = &get_point(tr, view_space_ray_dir_top_right);
+
+            let expected_viewport_size = &(glm::vec3_to_vec2(view_space_intersection_top_right)
+                - glm::vec3_to_vec2(view_space_intersection_bottom_left));
+
+            let camera_aspect = camera_width as f64 / camera_height as f64;
+            let vfov = self.get_fov().to_radians();
+            let hfov = vfov_to_hfov(vfov, camera_aspect) as f32;
+            let vfov = vfov as f32;
+
+            let calculate_expected_distance =
+                |fov: f32, size: f32| (size * 0.5) / (fov * 0.5).tan();
+
+            let expected_distance_hfov_x =
+                calculate_expected_distance(hfov, expected_viewport_size[0]);
+            let expected_distance_vfov_y =
+                calculate_expected_distance(vfov, expected_viewport_size[1]);
+
+            let expected_distance = expected_distance_hfov_x.max(expected_distance_vfov_y);
+
+            let view_space_intersection_center =
+                &((view_space_intersection_bottom_left + view_space_intersection_top_right) * 0.5);
+
+            let view_space_new_camera_position =
+                &(view_space_intersection_center + glm::vec3(0.0, 0.0, expected_distance));
+
+            let view_to_world_space_new_camera_position = &glm::vec4_to_vec3(
+                &Self::apply_matrix_vec3_to_vec4(view_space_new_camera_position, inv_view),
+            );
+
+            self.set_position(glm::convert(*view_to_world_space_new_camera_position));
+
+            Ok(())
+        } else {
+            Err(FitVertsInCameraViewError::NoIntersectionFound)
+        }
+    }
+
+    /// Apply the given [`glm::TMat4`] to the given [`glm::TVec3`] to
+    /// form a [`glm::TVec4`].
+    fn apply_matrix_vec3_to_vec4<T: glm::RealField>(
+        vec: &glm::TVec3<T>,
+        mat: &glm::TMat4<T>,
+    ) -> glm::TVec4<T> {
+        mat * glm::vec4(vec[0], vec[1], vec[2], T::one())
+    }
+
+    /// Ray plane intersection test.
+    ///
+    /// Returns the distance of the intersection from the ray origin
+    /// along the ray direction if the ray is not parallel with the
+    /// plane and the intersection is not behind the ray.
+    fn ray_plane_intersection(
+        ray_origin: &glm::Vec3,
+        ray_direction: &glm::Vec3,
+        point_on_plane: &glm::Vec3,
+        plane_normal: &glm::Vec3,
+    ) -> Option<f32> {
+        let d_dot_n = ray_direction.dot(plane_normal);
+        if d_dot_n.abs() < f32::EPSILON {
+            return None;
+        }
+
+        let t = (point_on_plane - ray_origin).dot(plane_normal) / d_dot_n;
+        if t > 0.0 {
+            Some(t)
+        } else {
+            None
+        }
+    }
 }
+
+/// Possible errors in [`Camera::move_to_fit_verts_in_camera_view()`].
+#[derive(Debug)]
+pub enum FitVertsInCameraViewError {
+    /// No verts provided to fit into the camera view.
+    NoVertsProvided,
+    /// No intersection found.
+    NoIntersectionFound,
+}
+
+impl Display for FitVertsInCameraViewError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FitVertsInCameraViewError::NoVertsProvided => write!(f, "no verts provided"),
+            FitVertsInCameraViewError::NoIntersectionFound => write!(f, "no intersection found"),
+        }
+    }
+}
+
+impl std::error::Error for FitVertsInCameraViewError {}
 
 /// Direction.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
