@@ -19,19 +19,45 @@ pub fn str_to_cstr(string: &str) -> &std::ffi::CStr {
         .expect("ensure there is a '\\0' at the end of the string");
 }
 
-fn append_one(vec: &glm::DVec3) -> glm::DVec4 {
-    glm::vec4(vec[0], vec[1], vec[2], 1.0)
+/// Append [`glm::Number::one()`] to the [`glm::TVec2`].
+pub fn vec2_append_one<T: glm::Number>(vec: &glm::TVec2<T>) -> glm::TVec3<T> {
+    glm::vec3(vec[0], vec[1], T::one())
 }
 
-pub fn vec2_apply_model_matrix(v: &glm::DVec2, model: &glm::DMat4) -> glm::DVec3 {
-    glm::vec4_to_vec3(&(model * append_one(&glm::vec2_to_vec3(v))))
+/// Append [`glm::Number::one()`] to the [`glm::TVec3`].
+pub fn vec3_append_one<T: glm::Number>(vec: &glm::TVec3<T>) -> glm::TVec4<T> {
+    glm::vec4(vec[0], vec[1], vec[2], T::one())
 }
 
-pub fn vec3_apply_model_matrix(v: &glm::DVec3, model: &glm::DMat4) -> glm::DVec3 {
-    glm::vec4_to_vec3(&(model * append_one(v)))
+/// Apply the given model matrix to the given [`glm::TVec2`].
+pub fn vec2_apply_model_matrix<T: glm::Number>(
+    v: &glm::TVec2<T>,
+    model: &glm::TMat4<T>,
+) -> glm::TVec3<T> {
+    glm::vec4_to_vec3(&(model * vec3_append_one(&glm::vec2_to_vec3(v))))
 }
 
-pub fn normal_apply_model_matrix(normal: &glm::DVec3, model: &glm::DMat4) -> glm::DVec3 {
+/// Apply the given model matrix to the given [`glm::TVec3`].
+pub fn vec3_apply_model_matrix<T: glm::Number>(
+    v: &glm::TVec3<T>,
+    model: &glm::TMat4<T>,
+) -> glm::TVec3<T> {
+    glm::vec4_to_vec3(&(model * vec3_append_one(v)))
+}
+
+/// Apply the given model matrix to the given [`glm::TVec3`] assuming
+/// the given vector represents a direction.
+///
+/// # Note
+///
+/// This operation is costly if done repeatedly (even if done just
+/// twice), it is better to use [`vec3_apply_model_matrix()`] instead
+/// by passing [`glm::inverse_transpose()`]\(model\) as the model
+/// matrix.
+pub fn normal_apply_model_matrix<T: glm::Number + glm::RealField>(
+    normal: &glm::TVec3<T>,
+    model: &glm::TMat4<T>,
+) -> glm::TVec3<T> {
     vec3_apply_model_matrix(normal, &glm::inverse_transpose(*model))
 }
 
