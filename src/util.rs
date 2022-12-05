@@ -54,11 +54,23 @@ pub fn vec3_apply_model_matrix<T: glm::Number>(
 /// twice), it is better to use [`vec3_apply_model_matrix()`] instead
 /// by passing [`glm::inverse_transpose()`]\(model\) as the model
 /// matrix.
+pub fn vec3_dir_apply_model_matrix<T: glm::Number + glm::RealField>(
+    direction: &glm::TVec3<T>,
+    model: &glm::TMat4<T>,
+) -> glm::TVec3<T> {
+    vec3_apply_model_matrix(direction, &glm::inverse_transpose(*model))
+}
+
+/// Use [`vec3_dir_apply_model_matrix()`] instead.
+#[deprecated(
+    since = "0.5.3",
+    note = "Use vec3_dir_apply_model_matrix() instead. This is solely a name change."
+)]
 pub fn normal_apply_model_matrix<T: glm::Number + glm::RealField>(
     normal: &glm::TVec3<T>,
     model: &glm::TMat4<T>,
 ) -> glm::TVec3<T> {
-    vec3_apply_model_matrix(normal, &glm::inverse_transpose(*model))
+    vec3_dir_apply_model_matrix(normal, model)
 }
 
 pub fn focal_length_to_fov(focal_length: f64, camera_sensor_size: f64) -> f64 {
