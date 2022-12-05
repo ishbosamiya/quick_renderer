@@ -269,12 +269,13 @@ impl InteractableCamera {
             self.fps_mode = false;
         }
 
-        let fov_changed = if ui.input().scroll_delta.y != 0.0 {
-            self.camera.zoom((ui.input().scroll_delta.y as f64) * 0.01);
-            true
-        } else {
-            false
-        };
+        let fov_changed =
+            if (response.hovered() || self.fps_mode) && ui.input().scroll_delta.y != 0.0 {
+                self.camera.zoom((ui.input().scroll_delta.y as f64) * 0.01);
+                true
+            } else {
+                false
+            };
 
         let res = if self.fps_mode {
             self.camera.fps_rotate(
