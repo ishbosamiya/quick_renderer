@@ -1180,11 +1180,11 @@ where
         &self,
         node_index: BVHNodeIndex,
         data: &RayCastData,
-        callback: Option<&F>,
+        callback: Option<F>,
         r_hit_data: &mut RayHitData<T, ExtraData>,
     ) where
         ExtraData: Copy,
-        F: Fn((&glm::DVec3, &glm::DVec3), T) -> Option<RayHitData<T, ExtraData>>,
+        F: FnMut(T) -> Option<RayHitData<T, ExtraData>> + std::marker::Copy,
     {
         let node = self.node_array.get(node_index.0).unwrap();
         if let Some(dist) = node.ray_hit(data, r_hit_data.dist) {
@@ -1193,10 +1193,8 @@ where
             }
 
             if node.totnode == 0 {
-                if let Some(callback) = callback {
-                    if let Some(hit_data) =
-                        callback((&data.co, &data.dir), node.elem_index.unwrap())
-                    {
+                if let Some(mut callback) = callback {
+                    if let Some(hit_data) = callback(node.elem_index.unwrap()) {
                         // update r_hit_data only if the current
                         // recorded distance is lesser than the
                         // distance got from the callback
@@ -1236,11 +1234,11 @@ where
         &self,
         co: glm::DVec3,
         dir: glm::DVec3,
-        callback: Option<&F>,
+        callback: Option<F>,
     ) -> Option<RayHitData<T, ExtraData>>
     where
         ExtraData: Copy,
-        F: Fn((&glm::DVec3, &glm::DVec3), T) -> Option<RayHitData<T, ExtraData>>,
+        F: FnMut(T) -> Option<RayHitData<T, ExtraData>> + std::marker::Copy,
     {
         if self.totleaf == 0 {
             // no elements so no ray intersection possible

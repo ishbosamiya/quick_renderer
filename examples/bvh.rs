@@ -315,7 +315,7 @@ fn main() {
             if let Some(ray_hit_info) = config.bvh.as_ref().unwrap().ray_cast(
                 camera.get_position(),
                 ray_direction,
-                None::<&fn((&glm::DVec3, &glm::DVec3), _) -> Option<bvh::RayHitData<_, _>>>,
+                None::<&fn(_) -> Option<bvh::RayHitData<_, _>>>,
             ) {
                 config
                     .bvh_ray_intersection
