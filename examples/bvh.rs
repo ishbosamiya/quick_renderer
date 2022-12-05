@@ -5,7 +5,6 @@ use std::rc::Rc;
 use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
 
-use quick_renderer::bvh;
 use quick_renderer::bvh::nearest_point_to_tri;
 use quick_renderer::bvh::BVHDrawData;
 use quick_renderer::bvh::BVHTree;
@@ -312,11 +311,12 @@ fn main() {
                 window_height,
             );
 
-            if let Some(ray_hit_info) = config.bvh.as_ref().unwrap().ray_cast(
-                camera.get_position(),
-                ray_direction,
-                None::<&fn(_) -> Option<bvh::RayHitData<_, _>>>,
-            ) {
+            if let Some(ray_hit_info) = config
+                .bvh
+                .as_ref()
+                .unwrap()
+                .ray_cast_no_callback(camera.get_position(), ray_direction)
+            {
                 config
                     .bvh_ray_intersection
                     .push((camera.get_position(), ray_hit_info));

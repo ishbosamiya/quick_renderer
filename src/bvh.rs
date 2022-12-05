@@ -1223,14 +1223,47 @@ where
         }
     }
 
-    /// Casts a ray starting at `co` in the direction `dir` and can
-    /// have an optional callback function
+    /// Casts a ray starting at `co` in the direction `dir` and
+    /// requires a function to call for the fine grain ray
+    /// intersection test.
     ///
-    /// `callback` takes arguments as `((co, dir), elem_index)`
+    /// `callback` takes the argument `elem_index` and must return
+    /// [`Some`] with the necessary data if an intersection takes
+    /// place, if no intersection takes place, must return [`None`].
     ///
-    /// Returns `None` if `ray_cast` didn't hit the BVH, return
-    /// `Some(RayHitData)` if it hit the BVH (and callback returned `Some`)
+    /// Returns [`None`] if the ray didn't hit the BVH, return
+    /// [`Some`]\([`RayHitData`]\) if it hit the BVH (and callback
+    /// returned [`Some`]).
     pub fn ray_cast<F, ExtraData>(
+        &self,
+        co: glm::DVec3,
+        dir: glm::DVec3,
+        callback: F,
+    ) -> Option<RayHitData<T, ExtraData>>
+    where
+        ExtraData: Copy,
+        F: FnMut(T) -> Option<RayHitData<T, ExtraData>> + std::marker::Copy,
+    {
+        self.ray_cast_optional_callback(co, dir, Some(callback))
+    }
+
+    /// Casts a ray starting at `co` in the direction `dir`.
+    ///
+    /// It is recommeded to use [`Self::ray_cast()`] and provide a
+    /// callback to be more precise than just the BVH level
+    /// intersection test.
+    pub fn ray_cast_no_callback(
+        &self,
+        co: glm::DVec3,
+        dir: glm::DVec3,
+    ) -> Option<RayHitData<T, ()>> {
+        self.ray_cast_optional_callback::<fn(T) -> Option<RayHitData<T, _>>, _>(co, dir, None)
+    }
+
+    /// Casts a ray starting at `co` in the direction `dir` with an
+    /// optional callback for finer precision ray intersection
+    /// testing.
+    fn ray_cast_optional_callback<F, ExtraData>(
         &self,
         co: glm::DVec3,
         dir: glm::DVec3,
