@@ -1,3 +1,5 @@
+//! OpenGL mesh operations.
+
 use std::convert::TryInto;
 
 use memoffset::offset_of;
@@ -8,6 +10,7 @@ use crate::{
     rasterize::Rasterize,
 };
 
+/// Simple vertex containing position, uv and normal information.
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy)]
 pub struct GLVert {
@@ -20,11 +23,16 @@ pub struct GLVert {
 }
 
 impl GLVert {
+    /// Create a new [`GLVert`].
     pub fn new(pos: glm::Vec3, uv: glm::Vec2, normal: glm::Vec3) -> Self {
         Self { pos, uv, normal }
     }
 }
 
+/// Index triangle. Stores the indicies of (an array of) the
+/// [`GLVert`] that form the triangle.
+///
+/// Ordering of the indices matters if back face culling is enabled.
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy)]
 pub struct Triangle {
@@ -37,11 +45,15 @@ pub struct Triangle {
 }
 
 impl Triangle {
+    /// Create a new [`Triangle`].
     pub fn new(i1: gl::types::GLuint, i2: gl::types::GLuint, i3: gl::types::GLuint) -> Self {
         Self { i1, i2, i3 }
     }
 }
 
+/// OpenGL mesh.
+///
+/// Upon creation, the mesh is sent to the GPU for future rendering.
 #[derive(Debug)]
 pub struct GLMesh {
     // no need to store the verts and indices, currently there is no
@@ -80,10 +92,12 @@ impl Rasterize for GLMesh {
 }
 
 impl GLMesh {
+    /// Create a new [`GLMesh`].
     pub fn new(verts: &[GLVert], triangles: &[Triangle]) -> Self {
         Self::setup(verts, triangles)
     }
 
+    /// Setup the [`GLMesh`] for rendering.
     fn setup(verts: &[GLVert], triangles: &[Triangle]) -> Self {
         let (vao, vbo, ebo) = unsafe {
             let mut vao: gl::types::GLuint = 0;
@@ -165,6 +179,11 @@ impl GLMesh {
             vbo: Some(vbo),
             ebo: Some(ebo),
         }
+    }
+
+    /// Get the number of triangles of the mesh.
+    pub fn num_triangles(&self) -> usize {
+        self.num_triangles
     }
 }
 
