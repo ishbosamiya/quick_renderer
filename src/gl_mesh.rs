@@ -11,9 +11,12 @@ use crate::{
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy)]
 pub struct GLVert {
-    pos: glm::Vec3,
-    uv: glm::Vec2,
-    normal: glm::Vec3,
+    /// Vertex position.
+    pub pos: glm::Vec3,
+    /// Vertex UV.
+    pub uv: glm::Vec2,
+    /// Vertex normal.
+    pub normal: glm::Vec3,
 }
 
 impl GLVert {
@@ -25,9 +28,12 @@ impl GLVert {
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy)]
 pub struct Triangle {
-    i1: gl::types::GLuint,
-    i2: gl::types::GLuint,
-    i3: gl::types::GLuint,
+    /// Index of the first vertex of the triangle.
+    pub i1: gl::types::GLuint,
+    /// Index of the second vertex of the triangle.
+    pub i2: gl::types::GLuint,
+    /// Index of the third vertex of the triangle.
+    pub i3: gl::types::GLuint,
 }
 
 impl Triangle {
