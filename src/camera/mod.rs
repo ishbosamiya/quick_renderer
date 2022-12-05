@@ -326,7 +326,7 @@ impl Camera {
     /// towards the point on the camera plane that is determined by
     /// the given x, y coordinates.
     pub fn get_raycast_direction(
-        &mut self,
+        &self,
         mouse_x: f64,
         mouse_y: f64,
         width: usize,
