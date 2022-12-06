@@ -1,7 +1,6 @@
 // Based on Blender's BLI_kdopbvh
 
 use generational_arena::{Arena, Index};
-use lazy_static::lazy_static;
 use nalgebra_glm as glm;
 use serde::Deserialize;
 use serde::Serialize;
@@ -28,42 +27,39 @@ impl BVHNodeIndex {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct BVHNode<E>
+struct BVHNode<T, E>
 where
     E: Copy,
 {
     children: Vec<BVHNodeIndex>,  // Indices of the child nodes
     parent: Option<BVHNodeIndex>, // Parent index
 
-    bv: Vec<f64>,          // Bounding volume axis data
+    bv: Vec<T>,            // Bounding volume axis data
     elem_index: Option<E>, // Index of element stored in the node
     totnode: u8,           // How many nodes are used, used for speedup
     main_axis: u8,         // Axis used to split this node
 }
 
-lazy_static! {
-    static ref BVHTREE_KDOP_AXES: Vec<glm::DVec3> = {
-        let v = vec![
-            glm::vec3(1.0, 0.0, 0.0),
-            glm::vec3(0.0, 1.0, 0.0),
-            glm::vec3(0.0, 0.0, 1.0),
-            glm::vec3(1.0, 1.0, 1.0),
-            glm::vec3(1.0, -1.0, 1.0),
-            glm::vec3(1.0, 1.0, -1.0),
-            glm::vec3(1.0, -1.0, -1.0),
-            glm::vec3(1.0, 1.0, 0.0),
-            glm::vec3(1.0, 0.0, 1.0),
-            glm::vec3(0.0, 1.0, 1.0),
-            glm::vec3(1.0, -1.0, 0.0),
-            glm::vec3(1.0, 0.0, -1.0),
-            glm::vec3(0.0, 1.0, -1.0),
-        ];
-        assert_eq!(v.len(), 13);
-        v
-    };
+/// Get the BVH tree kdop axes.
+fn bvhtree_kdop_axes<T: glm::Number>() -> [glm::TVec3<T>; 13] {
+    [
+        glm::vec3(T::one(), T::zero(), T::zero()),
+        glm::vec3(T::zero(), T::one(), T::zero()),
+        glm::vec3(T::zero(), T::zero(), T::one()),
+        glm::vec3(T::one(), T::one(), T::one()),
+        glm::vec3(T::one(), -T::one(), T::one()),
+        glm::vec3(T::one(), T::one(), -T::one()),
+        glm::vec3(T::one(), -T::one(), -T::one()),
+        glm::vec3(T::one(), T::one(), T::zero()),
+        glm::vec3(T::one(), T::zero(), T::one()),
+        glm::vec3(T::zero(), T::one(), T::one()),
+        glm::vec3(T::one(), -T::one(), T::zero()),
+        glm::vec3(T::one(), T::zero(), -T::one()),
+        glm::vec3(T::zero(), T::one(), -T::one()),
+    ]
 }
 
-impl<E> BVHNode<E>
+impl<T: glm::Number + glm::RealField, E> BVHNode<T, E>
 where
     E: Copy,
 {
@@ -82,8 +78,8 @@ where
     fn min_max_init(&mut self, start_axis: u8, stop_axis: u8) {
         let bv = &mut self.bv;
         for axis_iter in start_axis..stop_axis {
-            bv[(2 * axis_iter) as usize] = f64::MAX;
-            bv[((2 * axis_iter) + 1) as usize] = f64::MIN;
+            bv[(2 * axis_iter) as usize] = T::max_value();
+            bv[((2 * axis_iter) + 1) as usize] = T::min_value();
         }
     }
 
@@ -91,7 +87,7 @@ where
         &mut self,
         start_axis: u8,
         stop_axis: u8,
-        co_many: &[glm::DVec3],
+        co_many: &[glm::TVec3<T>],
         moving: bool,
     ) {
         if !moving {
@@ -99,11 +95,13 @@ where
         }
         let bv = &mut self.bv;
 
+        let bvhtree_kdop_axes = bvhtree_kdop_axes();
+
         assert_eq!(bv.len(), (stop_axis * 2) as usize);
         for co in co_many {
             for axis_iter in start_axis..stop_axis {
                 let axis_iter = axis_iter as usize;
-                let new_min_max = glm::dot(co, &BVHTREE_KDOP_AXES[axis_iter]);
+                let new_min_max = glm::dot(co, &bvhtree_kdop_axes[axis_iter]);
                 if new_min_max < bv[2 * axis_iter] {
                     bv[2 * axis_iter] = new_min_max;
                 }
@@ -114,7 +112,7 @@ where
         }
     }
 
-    fn overlap_test(&self, other: &BVHNode<E>, start_axis: u8, stop_axis: u8) -> bool {
+    fn overlap_test(&self, other: &BVHNode<T, E>, start_axis: u8, stop_axis: u8) -> bool {
         let bv1 = &self.bv;
         let bv2 = &other.bv;
         for axis_iter in start_axis..stop_axis {
@@ -130,7 +128,7 @@ where
     }
 
     /// Tests if ray hits the node. On hit it returns the distance.
-    fn ray_hit(&self, data: &RayCastData, dist: f64) -> Option<f64> {
+    fn ray_hit(&self, data: &RayCastData<T>, dist: T) -> Option<T> {
         let bv = &self.bv;
 
         let t1x = (bv[data.index[0]] - data.co[0]) * data.idot_axis[0];
@@ -141,7 +139,7 @@ where
         let t2z = (bv[data.index[5]] - data.co[2]) * data.idot_axis[2];
 
         if (t1x > t2y || t2x < t1y || t1x > t2z || t2x < t1z || t1y > t2z || t2y < t1z)
-            || (t2x < 0.0 || t2y < 0.0 || t2z < 0.0)
+            || (t2x < T::zero() || t2y < T::zero() || t2z < T::zero())
             || (t1x > dist || t1y > dist || t1z > dist)
         {
             None
@@ -152,8 +150,8 @@ where
 
     /// Determines the nearest point of self.
     /// Returns the nearest point
-    fn cal_nearest_point_squared(&self, proj: &glm::DVec3) -> glm::DVec3 {
-        let mut nearest: glm::DVec3 = glm::zero();
+    fn cal_nearest_point_squared(&self, proj: &glm::TVec3<T>) -> glm::TVec3<T> {
+        let mut nearest: glm::TVec3<T> = glm::zero();
         // nearest on AABB hull
         (0..3).for_each(|i| {
             let val = if self.bv[i * 2] > proj[i] {
@@ -189,14 +187,14 @@ impl std::fmt::Display for BVHError {
 impl std::error::Error for BVHError {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BVHTree<E>
+pub struct BVHTree<T, E>
 where
     E: Copy,
 {
     nodes: Vec<BVHNodeIndex>,
-    node_array: Arena<BVHNode<E>>, // Where the actual nodes are stored
+    node_array: Arena<BVHNode<T, E>>, // Where the actual nodes are stored
 
-    epsilon: f64, // Epsilon for inflation of the kdop
+    epsilon: T, // Epsilon for inflation of the kdop
     totleaf: usize,
     totbranch: usize,
     start_axis: u8,
@@ -288,41 +286,41 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub struct RayHitOptionalData<E>
+pub struct RayHitOptionalData<T, E>
 where
     E: Copy,
 {
     pub elem_index: E,
-    pub co: glm::DVec3,
+    pub co: glm::TVec3<T>,
 }
 
-impl<E> RayHitOptionalData<E>
+impl<T: glm::Number + glm::RealField, E> RayHitOptionalData<T, E>
 where
     E: Copy,
 {
-    pub fn new(elem_index: E, co: glm::DVec3) -> Self {
+    pub fn new(elem_index: E, co: glm::TVec3<T>) -> Self {
         Self { elem_index, co }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct RayHitData<E, ExtraData>
+pub struct RayHitData<T, E, ExtraData>
 where
     E: Copy,
     ExtraData: Copy,
 {
-    pub data: Option<RayHitOptionalData<E>>,
-    pub normal: Option<glm::DVec3>,
-    pub dist: f64,
+    pub data: Option<RayHitOptionalData<T, E>>,
+    pub normal: Option<glm::TVec3<T>>,
+    pub dist: T,
     pub extra_data: Option<ExtraData>,
 }
 
-impl<E, ExtraData> RayHitData<E, ExtraData>
+impl<T: glm::Number + glm::RealField, E, ExtraData> RayHitData<T, E, ExtraData>
 where
     E: Copy,
     ExtraData: Copy,
 {
-    pub fn new(dist: f64) -> Self {
+    pub fn new(dist: T) -> Self {
         Self {
             data: None,
             normal: None,
@@ -331,7 +329,7 @@ where
         }
     }
 
-    pub fn set_data(&mut self, data: RayHitOptionalData<E>) {
+    pub fn set_data(&mut self, data: RayHitOptionalData<T, E>) {
         self.data = Some(data);
     }
 
@@ -340,31 +338,33 @@ where
     }
 }
 
-struct RayCastData {
-    co: glm::DVec3,
-    dir: glm::DVec3,
+struct RayCastData<T> {
+    co: glm::TVec3<T>,
+    dir: glm::TVec3<T>,
 
-    ray_dot_axis: [f64; 13],
-    idot_axis: [f64; 13],
+    ray_dot_axis: [T; 13],
+    idot_axis: [T; 13],
     index: [usize; 6],
 }
 
-impl RayCastData {
-    fn new(co: glm::DVec3, dir: glm::DVec3) -> Self {
-        let mut ray_dot_axis: [f64; 13] = [0.0; 13];
-        let mut idot_axis: [f64; 13] = [0.0; 13];
+impl<T: glm::Number + glm::RealField> RayCastData<T> {
+    fn new(co: glm::TVec3<T>, dir: glm::TVec3<T>) -> Self {
+        let bvhtree_kdop_axes = bvhtree_kdop_axes();
+
+        let mut ray_dot_axis: [T; 13] = [T::zero(); 13];
+        let mut idot_axis: [T; 13] = [T::zero(); 13];
         let mut index: [usize; 6] = [0; 6];
         for i in 0..3 {
-            ray_dot_axis[i] = glm::dot(&dir, &BVHTREE_KDOP_AXES[i]);
+            ray_dot_axis[i] = glm::dot(&dir, &bvhtree_kdop_axes[i]);
 
-            if ray_dot_axis[i].abs() < f64::EPSILON {
-                ray_dot_axis[i] = 0.0;
-                idot_axis[i] = f64::MAX;
+            if ray_dot_axis[i].abs() < T::default_epsilon() {
+                ray_dot_axis[i] = T::zero();
+                idot_axis[i] = T::max_value();
             } else {
-                idot_axis[i] = 1.0 / ray_dot_axis[i];
+                idot_axis[i] = T::one() / ray_dot_axis[i];
             }
 
-            if idot_axis[i] < 0.0 {
+            if idot_axis[i] < T::zero() {
                 index[2 * i] = 1;
             } else {
                 index[2 * i] = 0;
@@ -384,25 +384,25 @@ impl RayCastData {
     }
 }
 
-pub struct NearestData<E>
+pub struct NearestData<T, E>
 where
     E: Copy,
 {
     elem_index: Option<E>,
-    co: Option<glm::DVec3>,
-    normal: Option<glm::DVec3>,
-    dist_sq: f64,
+    co: Option<glm::TVec3<T>>,
+    normal: Option<glm::TVec3<T>>,
+    dist_sq: T,
 }
 
-impl<E> NearestData<E>
+impl<T: glm::Number + glm::RealField, E> NearestData<T, E>
 where
     E: Copy,
 {
     pub fn new(
         elem_index: Option<E>,
-        co: Option<glm::DVec3>,
-        normal: Option<glm::DVec3>,
-        dist_sq: f64,
+        co: Option<glm::TVec3<T>>,
+        normal: Option<glm::TVec3<T>>,
+        dist_sq: T,
     ) -> Self {
         Self {
             elem_index,
@@ -415,9 +415,9 @@ where
     pub fn set_info(
         &mut self,
         elem_index: Option<E>,
-        co: Option<glm::DVec3>,
-        normal: Option<glm::DVec3>,
-        dist_sq: f64,
+        co: Option<glm::TVec3<T>>,
+        normal: Option<glm::TVec3<T>>,
+        dist_sq: T,
     ) {
         self.elem_index = elem_index;
         self.co = co;
@@ -429,20 +429,20 @@ where
         &self.elem_index
     }
 
-    pub fn get_co(&self) -> &Option<glm::DVec3> {
+    pub fn get_co(&self) -> &Option<glm::TVec3<T>> {
         &self.co
     }
 
-    pub fn get_normal(&self) -> &Option<glm::DVec3> {
+    pub fn get_normal(&self) -> &Option<glm::TVec3<T>> {
         &self.normal
     }
 
-    pub fn get_dist_sq(&self) -> f64 {
+    pub fn get_dist_sq(&self) -> T {
         self.dist_sq
     }
 }
 
-impl<E> BVHTree<E>
+impl<T: glm::Number + glm::RealField, E> BVHTree<T, E>
 where
     E: Copy,
 {
@@ -460,15 +460,15 @@ where
     /// * When invalid `axis` is given.
     ///
     /// * When invalid `tree_type` is given.
-    pub fn new(max_size: usize, epsilon: f64, tree_type: u8, axis: u8) -> Self {
+    pub fn new(max_size: usize, epsilon: T, tree_type: u8, axis: u8) -> Self {
         assert!(
             (2..=MAX_TREETYPE).contains(&tree_type),
             "tree_type must be >= 2 and <= {}",
             MAX_TREETYPE
         );
 
-        // epsilon must be >= f64::EPSILON so that tangent rays can still hit a bounding volume
-        let epsilon = epsilon.max(f64::EPSILON);
+        // epsilon must be >= T::EPSILON so that tangent rays can still hit a bounding volume
+        let epsilon = epsilon.max(T::default_epsilon());
 
         let start_axis;
         let stop_axis;
@@ -505,7 +505,7 @@ where
 
         for i in 0..numnodes {
             let node = node_array.get_unknown_gen_mut(i).unwrap().0;
-            node.bv.resize(axis.into(), 0.0);
+            node.bv.resize(axis.into(), T::zero());
             node.children
                 .resize(tree_type.into(), BVHNodeIndex::unknown());
         }
@@ -531,7 +531,7 @@ where
     /// will return `index` stored in the node that has closest hit
     ///
     /// `co_many` contains list of points to form the new BV around
-    pub fn insert(&mut self, index: E, co_many: &[glm::DVec3]) {
+    pub fn insert(&mut self, index: E, co_many: &[glm::TVec3<T>]) {
         assert!(self.totbranch == 0);
 
         self.nodes[self.totleaf] = BVHNodeIndex(self.node_array.get_unknown_index(self.totleaf));
@@ -888,8 +888,8 @@ where
     pub fn update_node(
         &mut self,
         node_index: usize,
-        co_many: &[glm::DVec3],
-        co_moving_many: &[glm::DVec3],
+        co_many: &[glm::TVec3<T>],
+        co_moving_many: &[glm::TVec3<T>],
     ) -> Result<(), BVHError> {
         if node_index > self.totleaf {
             return Err(BVHError::IndexOutOfRange);
@@ -974,7 +974,7 @@ where
     #[allow(clippy::too_many_arguments)]
     fn overlap_traverse_callback<F>(
         &self,
-        other: &BVHTree<E>,
+        other: &BVHTree<T, E>,
         node_1_index: BVHNodeIndex,
         node_2_index: BVHNodeIndex,
         start_axis: u8,
@@ -1043,7 +1043,7 @@ where
 
     fn overlap_traverse(
         &self,
-        other: &BVHTree<E>,
+        other: &BVHTree<T, E>,
         node_1_index: BVHNodeIndex,
         node_2_index: BVHNodeIndex,
         start_axis: u8,
@@ -1108,7 +1108,7 @@ where
     /// considered.
     pub fn overlap<F>(
         &self,
-        other: &BVHTree<E>,
+        other: &BVHTree<T, E>,
         callback: Option<&F>,
     ) -> Option<Vec<BVHTreeOverlap<E>>>
     where
@@ -1179,12 +1179,12 @@ where
     fn ray_cast_traverse<F, ExtraData>(
         &self,
         node_index: BVHNodeIndex,
-        data: &RayCastData,
+        data: &RayCastData<T>,
         callback: Option<F>,
-        r_hit_data: &mut RayHitData<E, ExtraData>,
+        r_hit_data: &mut RayHitData<T, E, ExtraData>,
     ) where
         ExtraData: Copy,
-        F: FnMut(E) -> Option<RayHitData<E, ExtraData>> + std::marker::Copy,
+        F: FnMut(E) -> Option<RayHitData<T, E, ExtraData>> + std::marker::Copy,
     {
         let node = self.node_array.get(node_index.0).unwrap();
         if let Some(dist) = node.ray_hit(data, r_hit_data.dist) {
@@ -1210,7 +1210,7 @@ where
                     r_hit_data.set_data(optional_data);
                     r_hit_data.dist = dist;
                 }
-            } else if data.ray_dot_axis[node.main_axis as usize] > 0.0 {
+            } else if data.ray_dot_axis[node.main_axis as usize] > T::zero() {
                 for i in 0..node.totnode {
                     self.ray_cast_traverse(node.children[i as usize], data, callback, r_hit_data);
                 }
@@ -1236,13 +1236,13 @@ where
     /// returned [`Some`]).
     pub fn ray_cast<F, ExtraData>(
         &self,
-        co: glm::DVec3,
-        dir: glm::DVec3,
+        co: glm::TVec3<T>,
+        dir: glm::TVec3<T>,
         callback: F,
-    ) -> Option<RayHitData<E, ExtraData>>
+    ) -> Option<RayHitData<T, E, ExtraData>>
     where
         ExtraData: Copy,
-        F: FnMut(E) -> Option<RayHitData<E, ExtraData>> + std::marker::Copy,
+        F: FnMut(E) -> Option<RayHitData<T, E, ExtraData>> + std::marker::Copy,
     {
         self.ray_cast_optional_callback(co, dir, Some(callback))
     }
@@ -1254,10 +1254,10 @@ where
     /// intersection test.
     pub fn ray_cast_no_callback(
         &self,
-        co: glm::DVec3,
-        dir: glm::DVec3,
-    ) -> Option<RayHitData<E, ()>> {
-        self.ray_cast_optional_callback::<fn(E) -> Option<RayHitData<E, _>>, _>(co, dir, None)
+        co: glm::TVec3<T>,
+        dir: glm::TVec3<T>,
+    ) -> Option<RayHitData<T, E, ()>> {
+        self.ray_cast_optional_callback::<fn(E) -> Option<RayHitData<T, E, _>>, _>(co, dir, None)
     }
 
     /// Casts a ray starting at `co` in the direction `dir` with an
@@ -1265,13 +1265,13 @@ where
     /// testing.
     fn ray_cast_optional_callback<F, ExtraData>(
         &self,
-        co: glm::DVec3,
-        dir: glm::DVec3,
+        co: glm::TVec3<T>,
+        dir: glm::TVec3<T>,
         callback: Option<F>,
-    ) -> Option<RayHitData<E, ExtraData>>
+    ) -> Option<RayHitData<T, E, ExtraData>>
     where
         ExtraData: Copy,
-        F: FnMut(E) -> Option<RayHitData<E, ExtraData>> + std::marker::Copy,
+        F: FnMut(E) -> Option<RayHitData<T, E, ExtraData>> + std::marker::Copy,
     {
         if self.totleaf == 0 {
             // no elements so no ray intersection possible
@@ -1282,7 +1282,7 @@ where
 
         let data = RayCastData::new(co, dir);
 
-        let mut hit_data = RayHitData::new(f64::MAX);
+        let mut hit_data = RayHitData::new(T::max_value());
 
         self.ray_cast_traverse(root_index, &data, callback, &mut hit_data);
 
@@ -1296,12 +1296,12 @@ where
     fn find_nearest_dfs<F>(
         &self,
         node_index: BVHNodeIndex,
-        co: &glm::DVec3,
-        proj: &[f64; 13],
+        co: &glm::TVec3<T>,
+        proj: &[T; 13],
         callback: &Option<F>,
-        r_nearest_data: &mut NearestData<E>,
+        r_nearest_data: &mut NearestData<T, E>,
     ) where
-        F: Fn(E, &glm::DVec3, &mut NearestData<E>),
+        F: Fn(E, &glm::TVec3<T>, &mut NearestData<T, E>),
     {
         let node = self.node_array.get(node_index.0).unwrap();
         let proj_v3 = glm::vec3(proj[0], proj[1], proj[2]);
@@ -1366,13 +1366,13 @@ where
     fn find_nearest_dfs_begin<F>(
         &self,
         node_index: BVHNodeIndex,
-        dist_sq: f64,
-        co: &glm::DVec3,
-        proj: &[f64; 13],
+        dist_sq: T,
+        co: &glm::TVec3<T>,
+        proj: &[T; 13],
         callback: &Option<F>,
-    ) -> Option<NearestData<E>>
+    ) -> Option<NearestData<T, E>>
     where
-        F: Fn(E, &glm::DVec3, &mut NearestData<E>),
+        F: Fn(E, &glm::TVec3<T>, &mut NearestData<T, E>),
     {
         let node = self.node_array.get(node_index.0).unwrap();
         let proj_v3 = glm::vec3(proj[0], proj[1], proj[2]);
@@ -1400,29 +1400,47 @@ where
     /// stored. It must update the nearest data (if needed).
     pub fn find_nearest<F>(
         &self,
-        co: glm::DVec3,
-        dist_sq: f64,
+        co: glm::TVec3<T>,
+        dist_sq: T,
         callback: &Option<F>,
-    ) -> Option<NearestData<E>>
+    ) -> Option<NearestData<T, E>>
     where
-        F: Fn(E, &glm::DVec3, &mut NearestData<E>),
+        F: Fn(E, &glm::TVec3<T>, &mut NearestData<T, E>),
     {
+        let bvhtree_kdop_axes = bvhtree_kdop_axes();
+
         let root_index = self.nodes[self.totleaf];
         self.node_array.get(root_index.0)?;
 
-        let mut proj: [f64; 13] = [0.0; 13];
+        let mut proj: [T; 13] = [T::zero(); 13];
         (self.start_axis..self.stop_axis).for_each(|axis_iter| {
-            proj[axis_iter as usize] = glm::dot(&co, &BVHTREE_KDOP_AXES[axis_iter as usize]);
+            proj[axis_iter as usize] = glm::dot(&co, &bvhtree_kdop_axes[axis_iter as usize]);
         });
 
         self.find_nearest_dfs_begin(root_index, dist_sq, &co, &proj, callback)
     }
 
     /// Easy call when no callback needed for `find_nearest()`.
-    pub fn find_nearest_no_callback(&self, co: glm::DVec3, dist_sq: f64) -> Option<NearestData<E>> {
-        self.find_nearest::<fn(E, &glm::DVec3, &mut NearestData<E>)>(co, dist_sq, &None)
+    pub fn find_nearest_no_callback(
+        &self,
+        co: glm::TVec3<T>,
+        dist_sq: T,
+    ) -> Option<NearestData<T, E>> {
+        self.find_nearest::<fn(E, &glm::TVec3<T>, &mut NearestData<T, E>)>(co, dist_sq, &None)
     }
 
+    pub fn get_min_max_bounds(&self) -> (glm::TVec3<T>, glm::TVec3<T>) {
+        let root_index = self.nodes[self.totleaf];
+        let root = &self.node_array.get(root_index.0).unwrap();
+
+        (
+            glm::vec3(root.bv[0], root.bv[2], root.bv[4]),
+            glm::vec3(root.bv[1], root.bv[3], root.bv[5]),
+        )
+    }
+}
+
+impl<T: glm::Number + num_traits::AsPrimitive<f32>, E: std::marker::Copy> BVHTree<T, E> {
     #[allow(clippy::too_many_arguments)]
     fn recursive_draw(
         &self,
@@ -1437,12 +1455,12 @@ where
         let node = self.node_array.get(node_index.0).unwrap();
 
         if current_level == draw_level {
-            let x1 = node.bv[0] as f32;
-            let x2 = node.bv[1] as f32;
-            let y1 = node.bv[(2)] as f32;
-            let y2 = node.bv[(2) + 1] as f32;
-            let z1 = node.bv[(2 * 2)] as f32;
-            let z2 = node.bv[(2 * 2) + 1] as f32;
+            let x1: f32 = node.bv[0].as_();
+            let x2: f32 = node.bv[1].as_();
+            let y1: f32 = node.bv[(2)].as_();
+            let y2: f32 = node.bv[(2) + 1].as_();
+            let z1: f32 = node.bv[(2 * 2)].as_();
+            let z2: f32 = node.bv[(2 * 2) + 1].as_();
 
             draw_box(imm, x1, x2, y1, y2, z1, z2, pos_attr, color_attr, color);
 
@@ -1466,23 +1484,13 @@ where
             }
         }
     }
-
-    pub fn get_min_max_bounds(&self) -> (glm::DVec3, glm::DVec3) {
-        let root_index = self.nodes[self.totleaf];
-        let root = &self.node_array.get(root_index.0).unwrap();
-
-        (
-            glm::vec3(root.bv[0], root.bv[2], root.bv[4]),
-            glm::vec3(root.bv[1], root.bv[3], root.bv[5]),
-        )
-    }
 }
 
 fn implicit_needed_branches(tree_type: u8, leafs: usize) -> usize {
     1.max(leafs + tree_type as usize - 3) / (tree_type - 1) as usize
 }
 
-fn get_largest_axis(bv: &[f64]) -> u8 {
+fn get_largest_axis<T: glm::Number + glm::RealField>(bv: &[T]) -> u8 {
     let middle_point_x = bv[1] - bv[0]; // x axis
     let middle_point_y = bv[3] - bv[2]; // y axis
     let middle_point_z = bv[5] - bv[4]; // z axis
@@ -1568,7 +1576,7 @@ impl BVHDrawData {
     }
 }
 
-impl<E> Drawable for BVHTree<E>
+impl<T: glm::Number + glm::RealField + num_traits::AsPrimitive<f32>, E> Drawable for BVHTree<T, E>
 where
     E: Copy,
 {
@@ -1625,7 +1633,10 @@ where
 /// point `co`.
 ///
 /// From Blender's math_geom.c `closest_on_tri_to_point_v3`.
-pub fn nearest_point_to_tri(co: &glm::DVec3, points: [&glm::DVec3; 3]) -> glm::DVec3 {
+pub fn nearest_point_to_tri<T: glm::Number + glm::RealField>(
+    co: &glm::TVec3<T>,
+    points: [&glm::TVec3<T>; 3],
+) -> glm::TVec3<T> {
     let p = co;
     let v1 = points[0];
     let v2 = points[1];
@@ -1637,7 +1648,7 @@ pub fn nearest_point_to_tri(co: &glm::DVec3, points: [&glm::DVec3; 3]) -> glm::D
     let ap = p - v1;
     let d1 = glm::dot(&ab, &ap);
     let d2 = glm::dot(&ac, &ap);
-    if d1 <= 0.0 && d2 <= 0.0 {
+    if d1 <= T::zero() && d2 <= T::zero() {
         /* barycentric coordinates (1,0,0) */
         return *v1;
     }
@@ -1646,14 +1657,14 @@ pub fn nearest_point_to_tri(co: &glm::DVec3, points: [&glm::DVec3; 3]) -> glm::D
     let bp = p - v2;
     let d3 = glm::dot(&ab, &bp);
     let d4 = glm::dot(&ac, &bp);
-    if d3 >= 0.0 && d4 <= d3 {
+    if d3 >= T::zero() && d4 <= d3 {
         /* barycentric coordinates (0,1,0) */
         return *v2;
     }
 
     /* Check if P in edge region of AB, if so return projection of P onto AB */
     let vc = d1 * d4 - d3 * d2;
-    if vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0 {
+    if vc <= T::zero() && d1 >= T::zero() && d3 <= T::zero() {
         let v = d1 / (d1 - d3);
         /* barycentric coordinates (1-v,v,0) */
         return v1 + ab * v;
@@ -1663,14 +1674,14 @@ pub fn nearest_point_to_tri(co: &glm::DVec3, points: [&glm::DVec3; 3]) -> glm::D
     let cp = p - v3;
     let d5 = glm::dot(&ab, &cp);
     let d6 = glm::dot(&ac, &cp);
-    if d6 >= 0.0 && d5 <= d6 {
+    if d6 >= T::zero() && d5 <= d6 {
         /* barycentric coordinates (0,0,1) */
         return *v3;
     }
 
     /* Check if P in edge region of AC, if so return projection of P onto AC */
     let vb = d5 * d2 - d1 * d6;
-    if vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0 {
+    if vb <= T::zero() && d2 >= T::zero() && d6 <= T::zero() {
         let w = d2 / (d2 - d6);
         /* barycentric coordinates (1-w,0,w) */
         return v1 + ac * w;
@@ -1678,14 +1689,14 @@ pub fn nearest_point_to_tri(co: &glm::DVec3, points: [&glm::DVec3; 3]) -> glm::D
 
     /* Check if P in edge region of BC, if so return projection of P onto BC */
     let va = d3 * d6 - d5 * d4;
-    if va <= 0.0 && (d4 - d3) >= 0.0 && (d5 - d6) >= 0.0 {
+    if va <= T::zero() && (d4 - d3) >= T::zero() && (d5 - d6) >= T::zero() {
         let w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
         /* barycentric coordinates (0,1-w,w) */
         return ((v3 - v2) * w) + v2;
     }
 
     /* P inside face region. Compute Q through its barycentric coordinates (u,v,w) */
-    let denom = 1.0 / (va + vb + vc);
+    let denom = T::one() / (va + vb + vc);
     let v = vb * denom;
     let w = vc * denom;
 
@@ -1728,7 +1739,7 @@ mod tests {
     fn bvh_insert() {
         use super::ArenaFunctions;
         use nalgebra_glm as glm;
-        let mut bvh = super::BVHTree::<usize>::new(1, 0.001, 3, 6);
+        let mut bvh = super::BVHTree::<f32, usize>::new(1, 0.001, 3, 6);
         bvh.insert(0, &[glm::vec3(-1.0, 0.0, 0.0), glm::vec3(1.0, 0.0, 0.0)]);
         bvh.balance();
         assert_eq!(bvh.nodes.len(), bvh.node_array.len());

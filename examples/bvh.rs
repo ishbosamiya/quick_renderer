@@ -32,7 +32,7 @@ use quick_renderer::shader;
 // TODO(ish): add bvh axis as a parameter
 
 struct Config {
-    bvh: Option<BVHTree<FaceIndex>>,
+    bvh: Option<BVHTree<f64, FaceIndex>>,
     draw_bvh: bool,
     bvh_draw_level: usize,
     should_cast_ray: bool,
@@ -43,7 +43,7 @@ struct Config {
     bvh_nearest_point_use_callback: bool,
     bvh_color: glm::DVec4,
     bvh_ray_color: glm::DVec4,
-    bvh_ray_intersection: Vec<(glm::DVec3, RayHitData<FaceIndex, ()>)>,
+    bvh_ray_intersection: Vec<(glm::DVec3, RayHitData<f64, FaceIndex, ()>)>,
 }
 
 impl Default for Config {
@@ -178,7 +178,9 @@ fn main() {
     config.build_bvh(mesh, 0.1);
 
     let nearest_point_to_face =
-        |face_index: FaceIndex, co: &glm::DVec3, r_nearest_data: &mut NearestData<FaceIndex>| {
+        |face_index: FaceIndex,
+         co: &glm::DVec3,
+         r_nearest_data: &mut NearestData<f64, FaceIndex>| {
             let face = mesh.get_face(face_index).unwrap();
             assert_eq!(face.get_verts().len(), 3);
             let n1 = mesh
