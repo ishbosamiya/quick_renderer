@@ -28,15 +28,15 @@ impl BVHNodeIndex {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct BVHNode<T>
+struct BVHNode<E>
 where
-    T: Copy,
+    E: Copy,
 {
     children: Vec<BVHNodeIndex>,  // Indices of the child nodes
     parent: Option<BVHNodeIndex>, // Parent index
 
     bv: Vec<f64>,          // Bounding volume axis data
-    elem_index: Option<T>, // Index of element stored in the node
+    elem_index: Option<E>, // Index of element stored in the node
     totnode: u8,           // How many nodes are used, used for speedup
     main_axis: u8,         // Axis used to split this node
 }
@@ -63,9 +63,9 @@ lazy_static! {
     };
 }
 
-impl<T> BVHNode<T>
+impl<E> BVHNode<E>
 where
-    T: Copy,
+    E: Copy,
 {
     fn new() -> Self {
         Self {
@@ -114,7 +114,7 @@ where
         }
     }
 
-    fn overlap_test(&self, other: &BVHNode<T>, start_axis: u8, stop_axis: u8) -> bool {
+    fn overlap_test(&self, other: &BVHNode<E>, start_axis: u8, stop_axis: u8) -> bool {
         let bv1 = &self.bv;
         let bv2 = &other.bv;
         for axis_iter in start_axis..stop_axis {
@@ -189,12 +189,12 @@ impl std::fmt::Display for BVHError {
 impl std::error::Error for BVHError {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BVHTree<T>
+pub struct BVHTree<E>
 where
-    T: Copy,
+    E: Copy,
 {
     nodes: Vec<BVHNodeIndex>,
-    node_array: Arena<BVHNode<T>>, // Where the actual nodes are stored
+    node_array: Arena<BVHNode<E>>, // Where the actual nodes are stored
 
     epsilon: f64, // Epsilon for inflation of the kdop
     totleaf: usize,
@@ -270,56 +270,56 @@ impl<'a> BVHDivNodesData<'a> {
     }
 }
 
-pub struct BVHTreeOverlap<T>
+pub struct BVHTreeOverlap<E>
 where
-    T: Copy,
+    E: Copy,
 {
-    pub index_1: T,
-    pub index_2: T,
+    pub index_1: E,
+    pub index_2: E,
 }
 
-impl<T> BVHTreeOverlap<T>
+impl<E> BVHTreeOverlap<E>
 where
-    T: Copy,
+    E: Copy,
 {
-    fn new(index_1: T, index_2: T) -> Self {
+    fn new(index_1: E, index_2: E) -> Self {
         Self { index_1, index_2 }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct RayHitOptionalData<T>
+pub struct RayHitOptionalData<E>
 where
-    T: Copy,
+    E: Copy,
 {
-    pub elem_index: T,
+    pub elem_index: E,
     pub co: glm::DVec3,
 }
 
-impl<T> RayHitOptionalData<T>
+impl<E> RayHitOptionalData<E>
 where
-    T: Copy,
+    E: Copy,
 {
-    pub fn new(elem_index: T, co: glm::DVec3) -> Self {
+    pub fn new(elem_index: E, co: glm::DVec3) -> Self {
         Self { elem_index, co }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct RayHitData<T, ExtraData>
+pub struct RayHitData<E, ExtraData>
 where
-    T: Copy,
+    E: Copy,
     ExtraData: Copy,
 {
-    pub data: Option<RayHitOptionalData<T>>,
+    pub data: Option<RayHitOptionalData<E>>,
     pub normal: Option<glm::DVec3>,
     pub dist: f64,
     pub extra_data: Option<ExtraData>,
 }
 
-impl<T, ExtraData> RayHitData<T, ExtraData>
+impl<E, ExtraData> RayHitData<E, ExtraData>
 where
-    T: Copy,
+    E: Copy,
     ExtraData: Copy,
 {
     pub fn new(dist: f64) -> Self {
@@ -331,7 +331,7 @@ where
         }
     }
 
-    pub fn set_data(&mut self, data: RayHitOptionalData<T>) {
+    pub fn set_data(&mut self, data: RayHitOptionalData<E>) {
         self.data = Some(data);
     }
 
@@ -384,22 +384,22 @@ impl RayCastData {
     }
 }
 
-pub struct NearestData<T>
+pub struct NearestData<E>
 where
-    T: Copy,
+    E: Copy,
 {
-    elem_index: Option<T>,
+    elem_index: Option<E>,
     co: Option<glm::DVec3>,
     normal: Option<glm::DVec3>,
     dist_sq: f64,
 }
 
-impl<T> NearestData<T>
+impl<E> NearestData<E>
 where
-    T: Copy,
+    E: Copy,
 {
     pub fn new(
-        elem_index: Option<T>,
+        elem_index: Option<E>,
         co: Option<glm::DVec3>,
         normal: Option<glm::DVec3>,
         dist_sq: f64,
@@ -414,7 +414,7 @@ where
 
     pub fn set_info(
         &mut self,
-        elem_index: Option<T>,
+        elem_index: Option<E>,
         co: Option<glm::DVec3>,
         normal: Option<glm::DVec3>,
         dist_sq: f64,
@@ -425,7 +425,7 @@ where
         self.dist_sq = dist_sq;
     }
 
-    pub fn get_elem_index(&self) -> &Option<T> {
+    pub fn get_elem_index(&self) -> &Option<E> {
         &self.elem_index
     }
 
@@ -442,9 +442,9 @@ where
     }
 }
 
-impl<T> BVHTree<T>
+impl<E> BVHTree<E>
 where
-    T: Copy,
+    E: Copy,
 {
     /// Create new BVH
     ///
@@ -531,7 +531,7 @@ where
     /// will return `index` stored in the node that has closest hit
     ///
     /// `co_many` contains list of points to form the new BV around
-    pub fn insert(&mut self, index: T, co_many: &[glm::DVec3]) {
+    pub fn insert(&mut self, index: E, co_many: &[glm::DVec3]) {
         assert!(self.totbranch == 0);
 
         self.nodes[self.totleaf] = BVHNodeIndex(self.node_array.get_unknown_index(self.totleaf));
@@ -974,15 +974,15 @@ where
     #[allow(clippy::too_many_arguments)]
     fn overlap_traverse_callback<F>(
         &self,
-        other: &BVHTree<T>,
+        other: &BVHTree<E>,
         node_1_index: BVHNodeIndex,
         node_2_index: BVHNodeIndex,
         start_axis: u8,
         stop_axis: u8,
         callback: &F,
-        r_overlap_pairs: &mut Vec<BVHTreeOverlap<T>>,
+        r_overlap_pairs: &mut Vec<BVHTreeOverlap<E>>,
     ) where
-        F: Fn(T, T) -> bool,
+        F: Fn(E, E) -> bool,
     {
         let node_1 = self.node_array.get(node_1_index.0).unwrap();
         let node_2 = other.node_array.get(node_2_index.0).unwrap();
@@ -1043,12 +1043,12 @@ where
 
     fn overlap_traverse(
         &self,
-        other: &BVHTree<T>,
+        other: &BVHTree<E>,
         node_1_index: BVHNodeIndex,
         node_2_index: BVHNodeIndex,
         start_axis: u8,
         stop_axis: u8,
-        r_overlap_pairs: &mut Vec<BVHTreeOverlap<T>>,
+        r_overlap_pairs: &mut Vec<BVHTreeOverlap<E>>,
     ) {
         let node_1 = self.node_array.get(node_1_index.0).unwrap();
         let node_2 = other.node_array.get(node_2_index.0).unwrap();
@@ -1108,11 +1108,11 @@ where
     /// considered.
     pub fn overlap<F>(
         &self,
-        other: &BVHTree<T>,
+        other: &BVHTree<E>,
         callback: Option<&F>,
-    ) -> Option<Vec<BVHTreeOverlap<T>>>
+    ) -> Option<Vec<BVHTreeOverlap<E>>>
     where
-        F: Fn(T, T) -> bool,
+        F: Fn(E, E) -> bool,
     {
         if self.totleaf == 0 {
             // no elements so no overlap possible
@@ -1181,10 +1181,10 @@ where
         node_index: BVHNodeIndex,
         data: &RayCastData,
         callback: Option<F>,
-        r_hit_data: &mut RayHitData<T, ExtraData>,
+        r_hit_data: &mut RayHitData<E, ExtraData>,
     ) where
         ExtraData: Copy,
-        F: FnMut(T) -> Option<RayHitData<T, ExtraData>> + std::marker::Copy,
+        F: FnMut(E) -> Option<RayHitData<E, ExtraData>> + std::marker::Copy,
     {
         let node = self.node_array.get(node_index.0).unwrap();
         if let Some(dist) = node.ray_hit(data, r_hit_data.dist) {
@@ -1239,10 +1239,10 @@ where
         co: glm::DVec3,
         dir: glm::DVec3,
         callback: F,
-    ) -> Option<RayHitData<T, ExtraData>>
+    ) -> Option<RayHitData<E, ExtraData>>
     where
         ExtraData: Copy,
-        F: FnMut(T) -> Option<RayHitData<T, ExtraData>> + std::marker::Copy,
+        F: FnMut(E) -> Option<RayHitData<E, ExtraData>> + std::marker::Copy,
     {
         self.ray_cast_optional_callback(co, dir, Some(callback))
     }
@@ -1256,8 +1256,8 @@ where
         &self,
         co: glm::DVec3,
         dir: glm::DVec3,
-    ) -> Option<RayHitData<T, ()>> {
-        self.ray_cast_optional_callback::<fn(T) -> Option<RayHitData<T, _>>, _>(co, dir, None)
+    ) -> Option<RayHitData<E, ()>> {
+        self.ray_cast_optional_callback::<fn(E) -> Option<RayHitData<E, _>>, _>(co, dir, None)
     }
 
     /// Casts a ray starting at `co` in the direction `dir` with an
@@ -1268,10 +1268,10 @@ where
         co: glm::DVec3,
         dir: glm::DVec3,
         callback: Option<F>,
-    ) -> Option<RayHitData<T, ExtraData>>
+    ) -> Option<RayHitData<E, ExtraData>>
     where
         ExtraData: Copy,
-        F: FnMut(T) -> Option<RayHitData<T, ExtraData>> + std::marker::Copy,
+        F: FnMut(E) -> Option<RayHitData<E, ExtraData>> + std::marker::Copy,
     {
         if self.totleaf == 0 {
             // no elements so no ray intersection possible
@@ -1299,9 +1299,9 @@ where
         co: &glm::DVec3,
         proj: &[f64; 13],
         callback: &Option<F>,
-        r_nearest_data: &mut NearestData<T>,
+        r_nearest_data: &mut NearestData<E>,
     ) where
-        F: Fn(T, &glm::DVec3, &mut NearestData<T>),
+        F: Fn(E, &glm::DVec3, &mut NearestData<E>),
     {
         let node = self.node_array.get(node_index.0).unwrap();
         let proj_v3 = glm::vec3(proj[0], proj[1], proj[2]);
@@ -1370,9 +1370,9 @@ where
         co: &glm::DVec3,
         proj: &[f64; 13],
         callback: &Option<F>,
-    ) -> Option<NearestData<T>>
+    ) -> Option<NearestData<E>>
     where
-        F: Fn(T, &glm::DVec3, &mut NearestData<T>),
+        F: Fn(E, &glm::DVec3, &mut NearestData<E>),
     {
         let node = self.node_array.get(node_index.0).unwrap();
         let proj_v3 = glm::vec3(proj[0], proj[1], proj[2]);
@@ -1403,9 +1403,9 @@ where
         co: glm::DVec3,
         dist_sq: f64,
         callback: &Option<F>,
-    ) -> Option<NearestData<T>>
+    ) -> Option<NearestData<E>>
     where
-        F: Fn(T, &glm::DVec3, &mut NearestData<T>),
+        F: Fn(E, &glm::DVec3, &mut NearestData<E>),
     {
         let root_index = self.nodes[self.totleaf];
         self.node_array.get(root_index.0)?;
@@ -1419,8 +1419,8 @@ where
     }
 
     /// Easy call when no callback needed for `find_nearest()`.
-    pub fn find_nearest_no_callback(&self, co: glm::DVec3, dist_sq: f64) -> Option<NearestData<T>> {
-        self.find_nearest::<fn(T, &glm::DVec3, &mut NearestData<T>)>(co, dist_sq, &None)
+    pub fn find_nearest_no_callback(&self, co: glm::DVec3, dist_sq: f64) -> Option<NearestData<E>> {
+        self.find_nearest::<fn(E, &glm::DVec3, &mut NearestData<E>)>(co, dist_sq, &None)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1568,9 +1568,9 @@ impl BVHDrawData {
     }
 }
 
-impl<T> Drawable for BVHTree<T>
+impl<E> Drawable for BVHTree<E>
 where
-    T: Copy,
+    E: Copy,
 {
     type ExtraData = BVHDrawData;
     type Error = NoSpecificDrawError;
