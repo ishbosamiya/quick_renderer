@@ -12,14 +12,15 @@ pub fn jfa(
     num_steps: usize,
     imm: &mut GPUImmediate,
 ) -> TextureRGBAFloat {
-    unsafe {
-        gl::Disable(gl::DEPTH_TEST);
-    }
     let (width, height) = (image.get_width(), image.get_height());
     let mut prev_viewport_params = [0, 0, 0, 0];
+    let prev_depth_enable = unsafe { gl::IsEnabled(gl::DEPTH_TEST) } != 0;
+    let prev_blend_enable = unsafe { gl::IsEnabled(gl::BLEND) } != 0;
     unsafe {
         gl::GetIntegerv(gl::VIEWPORT, prev_viewport_params.as_mut_ptr());
         gl::Viewport(0, 0, width.try_into().unwrap(), height.try_into().unwrap());
+        gl::Disable(gl::DEPTH_TEST);
+        gl::Enable(gl::BLEND);
     }
     let jfa_initialization_shader = shader::builtins::get_jfa_initialization_shader()
         .as_ref()
@@ -74,13 +75,19 @@ pub fn jfa(
     });
 
     unsafe {
-        gl::Enable(gl::DEPTH_TEST);
         gl::Viewport(
             prev_viewport_params[0],
             prev_viewport_params[1],
             prev_viewport_params[2],
             prev_viewport_params[3],
         );
+
+        if prev_depth_enable {
+            gl::Enable(gl::DEPTH_TEST);
+        }
+        if !prev_blend_enable {
+            gl::Disable(gl::BLEND);
+        }
     }
     FrameBuffer::activiate_default();
 
