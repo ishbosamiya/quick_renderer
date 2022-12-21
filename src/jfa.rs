@@ -50,10 +50,9 @@ pub fn jfa(
     // Initialization
     {
         framebuffer.activate(&mut jfa_texture_1, &renderbuffer);
-        unsafe {
-            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-        }
+
+        // no need to clear the framebuffer since blending is turned
+        // off, it will just overwrite the pixels
 
         jfa_initialization_shader.use_shader();
         jfa_initialization_shader.set_int("u_image\0", 31);
@@ -71,10 +70,9 @@ pub fn jfa(
         };
 
         framebuffer.activate(render_to, &renderbuffer);
-        unsafe {
-            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-        }
+
+        // no need to clear the framebuffer since blending is turned
+        // off, it will just overwrite the pixels
 
         let step_size = 2.0_f32.powi((num_steps - 1 - step).try_into().unwrap());
 
