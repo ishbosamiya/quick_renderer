@@ -36,7 +36,7 @@ pub fn jfa(
         gl::GetIntegerv(gl::VIEWPORT, prev_viewport_params.as_mut_ptr());
         gl::Viewport(0, 0, width.try_into().unwrap(), height.try_into().unwrap());
         gl::Disable(gl::DEPTH_TEST);
-        gl::Enable(gl::BLEND);
+        gl::Disable(gl::BLEND);
     }
     let jfa_initialization_shader = shader::builtins::get_jfa_initialization_shader()
         .as_ref()
@@ -101,8 +101,8 @@ pub fn jfa(
         if prev_depth_enable {
             gl::Enable(gl::DEPTH_TEST);
         }
-        if !prev_blend_enable {
-            gl::Disable(gl::BLEND);
+        if prev_blend_enable {
+            gl::Enable(gl::BLEND);
         }
     }
 
