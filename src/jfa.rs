@@ -6,7 +6,23 @@ use crate::renderbuffer::RenderBuffer;
 use crate::texture::TextureRGBAFloat;
 use crate::{gpu_utils, shader};
 
-/// Jump Flooding Algorithm
+/// Jump Flooding Algorithm.
+///
+/// For the given [`TextureRGBAFloat`], jump flooding of the areas of
+/// the image that have their `r + g` values greater than 0.0 is
+/// done. The `b and a` values are preserved thus can be used to store
+/// additional information in the image.
+///
+/// # Note
+///
+/// * This is slow at the moment since everytime this function is
+/// called, new textures are allocated and then destroyed at the end
+/// of it. This is mainly for testing purposes and a way to show how
+/// it could possibly be implemented.
+///
+/// * It is important to reset the framebuffer state to whatever is
+/// necessary since an internal framebuffer is made active during the
+/// execution.
 pub fn jfa(
     image: &mut TextureRGBAFloat,
     num_steps: usize,
@@ -40,7 +56,7 @@ pub fn jfa(
         }
 
         jfa_initialization_shader.use_shader();
-        jfa_initialization_shader.set_int("image\0", 31);
+        jfa_initialization_shader.set_int("u_image\0", 31);
         image.activate(31);
 
         gpu_utils::draw_screen_quad_with_uv(imm, jfa_initialization_shader);
@@ -67,8 +83,8 @@ pub fn jfa(
         let step_size = 2.0_f32.powi((num_steps - 1 - step).try_into().unwrap());
 
         jfa_step_shader.use_shader();
-        jfa_step_shader.set_int("image\0", 31);
-        jfa_step_shader.set_float("step_size\0", step_size);
+        jfa_step_shader.set_int("u_image\0", 31);
+        jfa_step_shader.set_float("u_step_size\0", step_size);
         render_from.activate(31);
 
         gpu_utils::draw_screen_quad_with_uv(imm, jfa_step_shader);
@@ -89,7 +105,6 @@ pub fn jfa(
             gl::Disable(gl::BLEND);
         }
     }
-    FrameBuffer::activiate_default();
 
     if num_steps == 0 {
         jfa_texture_1
@@ -128,7 +143,7 @@ pub fn convert_to_distance(
         .as_ref()
         .unwrap();
     jfa_convert_to_distance_shader.use_shader();
-    jfa_convert_to_distance_shader.set_int("image\0", 31);
+    jfa_convert_to_distance_shader.set_int("u_image\0", 31);
     jfa_texture.activate(31);
 
     gpu_utils::draw_screen_quad_with_uv(imm, jfa_convert_to_distance_shader);
