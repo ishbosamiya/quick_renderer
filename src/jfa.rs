@@ -64,15 +64,11 @@ pub fn jfa(
 
     // JFA steps
     (0..num_steps).for_each(|step| {
-        let render_to;
-        let render_from;
-        if step % 2 == 0 {
-            render_from = &mut jfa_texture_1;
-            render_to = &mut jfa_texture_2;
+        let (render_from, render_to) = if step % 2 == 0 {
+            (&mut jfa_texture_1, &mut jfa_texture_2)
         } else {
-            render_from = &mut jfa_texture_2;
-            render_to = &mut jfa_texture_1;
-        }
+            (&mut jfa_texture_2, &mut jfa_texture_1)
+        };
 
         framebuffer.activate(render_to, &renderbuffer);
         unsafe {
@@ -106,12 +102,10 @@ pub fn jfa(
         }
     }
 
-    if num_steps == 0 {
+    if num_steps % 2 == 0 {
         jfa_texture_1
-    } else if num_steps % 2 == 0 {
-        jfa_texture_2
     } else {
-        jfa_texture_1
+        jfa_texture_2
     }
 }
 
