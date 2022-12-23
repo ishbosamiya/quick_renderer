@@ -5,25 +5,6 @@ use super::{Shader, ShaderError};
 use crate::camera::Camera;
 use crate::glm;
 
-/// Setup a static ref of a [`String`] by including file at the given
-/// location or optionally with `NO_INCLUDE`, load the file at run
-/// time.
-macro_rules! setup_static_ref_string {
-    ( $location:literal ) => {
-        include_str!($location).to_string()
-    };
-
-    ( $location:literal NO_INCLUDE ) => {
-        std::fs::read_to_string(
-            std::path::Path::new(file!())
-                .parent()
-                .unwrap()
-                .join($location),
-        )
-        .unwrap()
-    };
-}
-
 /// Load the shader code into the executable and provide functions to
 /// access the [`Shader`] and it's the code (as a reference to
 /// [`str`]).
@@ -63,11 +44,11 @@ macro_rules! load_builtin_shader {
         paste! {
             lazy_static! {
                 static ref [<$static_name _VERT_CODE>]: String = {
-                    setup_static_ref_string!( $vert_location $($no_include)* )
+                    load_builtin_shader!( include_str $vert_location $($no_include)* )
                 };
 
                 static ref [<$static_name _FRAG_CODE>]: String = {
-                    setup_static_ref_string!( $frag_location $($no_include)* )
+                    load_builtin_shader!( include_str $frag_location $($no_include)* )
                 };
             }
         }
@@ -91,6 +72,22 @@ macro_rules! load_builtin_shader {
 
     ( $get_shader:ident ; $get_vert_code:ident ; $get_frag_code:ident ; $vert_location:literal ; $frag_location:literal ; $static_name:ident $(;)? ) => {
         load_builtin_shader!($get_shader; $get_vert_code; $get_frag_code; $vert_location; $frag_location; $static_name;);
+    };
+
+    // private macro case
+    ( include_str $location:literal ) => {
+        include_str!($location).to_string()
+    };
+
+    // private macro case
+    ( include_str $location:literal NO_INCLUDE ) => {
+        std::fs::read_to_string(
+            std::path::Path::new(file!())
+                .parent()
+                .unwrap()
+                .join($location),
+        )
+        .unwrap()
     };
 }
 
