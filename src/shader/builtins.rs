@@ -5,47 +5,127 @@ use super::{Shader, ShaderError};
 use crate::camera::Camera;
 use crate::glm;
 
+/// Setup a static ref of a [`String`] by including file at the given
+/// location or optionally with `NO_INCLUDE`, load the file at run
+/// time.
+macro_rules! setup_static_ref_string {
+    ( $location:literal ) => {
+        include_str!($location).to_string()
+    };
+
+    ( $location:literal NO_INCLUDE ) => {
+        std::fs::read_to_string(
+            std::path::Path::new(file!())
+                .parent()
+                .unwrap()
+                .join($location),
+        )
+        .unwrap()
+    };
+}
+
+/// Load the shader code into the executable and provide functions to
+/// access the [`Shader`] and it's the code (as a reference to
+/// [`str`]).
+///
+/// The arguments must be in the order
+///
+/// 1. name of function that gets the [`Shader`].
+///
+/// 2. name of function that gets the vertex shader code.
+///
+/// 3. name of function that gets the fragment shader code.
+///
+/// 4. path to vertex shader code relative to the file containing this
+/// macro invocation.
+///
+/// 5. path to fragment shader code relative to the file containing
+/// this macro invocation.
+///
+/// 6. name of the static reference to the Shader result.
+///
+/// 7. optionally, `NO_INCLUDE` to indicate that the shader code
+/// should be included during compilation (using [`include_str`] but
+/// be loaded into memory at run time. NOTE: this should be used only
+/// for debugging purposes, to make it easier to modify and test the
+/// shader code without recompiling the executable with every change
+/// (still requires the executable to be reexecuted post changing the
+/// shader code, it only removes the need for Rust to recompile
+/// everything).
 #[macro_export]
 macro_rules! load_builtin_shader {
-    ( $get_shader:ident ; $get_vert_code:ident ; $get_frag_code:ident ; $vert_location:tt ; $frag_location:tt ; $static_name:ident ) => {
+    ( $get_shader:ident ; $get_vert_code:ident ; $get_frag_code:ident ; $vert_location:literal ; $frag_location:literal ; $static_name:ident ; $($no_include:tt)? ) => {
         lazy_static! {
             static ref $static_name: Result<Shader, ShaderError> =
                 { Shader::from_strings($get_vert_code(), $get_frag_code(),) };
         }
 
+        paste! {
+            lazy_static! {
+                static ref [<$static_name _VERT_CODE>]: String = {
+                    setup_static_ref_string!( $vert_location $($no_include)* )
+                };
+
+                static ref [<$static_name _FRAG_CODE>]: String = {
+                    setup_static_ref_string!( $frag_location $($no_include)* )
+                };
+            }
+        }
+
         pub fn $get_vert_code() -> &'static str {
-            include_str!($vert_location)
+            paste! {
+                &[<$static_name _VERT_CODE>]
+            }
         }
 
         pub fn $get_frag_code() -> &'static str {
-            include_str!($frag_location)
+            paste! {
+                &[<$static_name _FRAG_CODE>]
+            }
         }
 
         pub fn $get_shader() -> &'static Result<Shader, ShaderError> {
             &$static_name
         }
     };
+
+    ( $get_shader:ident ; $get_vert_code:ident ; $get_frag_code:ident ; $vert_location:literal ; $frag_location:literal ; $static_name:ident $(;)? ) => {
+        load_builtin_shader!($get_shader; $get_vert_code; $get_frag_code; $vert_location; $frag_location; $static_name;);
+    };
 }
 
+/// An easy way to load the shader code into the executable and
+/// provide functions to access the [`Shader`] and it's code (as a
+/// reference to [`str`].
+///
+/// Internally makes a call to [`load_builtin_shader`] with automatic
+/// expansion of many parameters.
 #[macro_export]
 macro_rules! load_builtin_shader_easy {
-    ( $name:ident ; $vert_location:tt ; $frag_location:tt ) => {
+    ( $name:ident ; $vert_location:literal ; $frag_location:literal $(;)? ) => {
         paste! {
-            load_builtin_shader!([<get_ $name _shader>]; [<get_ $name _vert_code>]; [<get_ $name _frag_code>]; $vert_location; $frag_location; [<$name:upper>]);
+            load_builtin_shader!([<get_ $name _shader>]; [<get_ $name _vert_code>]; [<get_ $name _frag_code>]; $vert_location; $frag_location; [<$name:upper>] );
         }
-    }
+    };
+
+    ( $name:ident ; $vert_location:literal ; $frag_location:literal ; $no_include:tt ) => {
+        paste! {
+            load_builtin_shader!([<get_ $name _shader>]; [<get_ $name _vert_code>]; [<get_ $name _frag_code>]; $vert_location; $frag_location; [<$name:upper>] ; $no_include);
+        }
+    };
 }
 
 load_builtin_shader_easy!(
     directional_light;
     "../../shaders/directional_light.vert";
-    "../../shaders/directional_light.frag"
+    "../../shaders/directional_light.frag";
 );
 
 load_builtin_shader_easy!(
     smooth_color_3d;
     "../../shaders/shader_3D_smooth_color.vert";
-    "../../shaders/shader_3D_smooth_color.frag");
+    "../../shaders/shader_3D_smooth_color.frag"
+);
 
 load_builtin_shader_easy!(
     infinite_grid;
