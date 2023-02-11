@@ -44,6 +44,9 @@ impl From<glfw::Error> for Error {
 
 /// Implementing this trait is the way to create a simple application.
 pub trait App {
+    /// Type of data to pass to [`Self::init()`].
+    type InitData;
+
     /// The initialization of the application. This is the entry point
     /// for the application through the creation of the application.
     ///
@@ -53,7 +56,10 @@ pub trait App {
     ///
     /// If an error is returned, the application will quit and exit
     /// out of the environment with the error provided.
-    fn init(environment: &mut Environment) -> Result<Self, Box<dyn std::error::Error>>
+    fn init(
+        environment: &mut Environment,
+        extra: Self::InitData,
+    ) -> Result<Self, Box<dyn std::error::Error>>
     where
         Self: std::marker::Sized;
 
@@ -140,10 +146,10 @@ impl Environment {
     /// ```ignore
     /// Environment::new("Simple Render")?.run::<Application>()?
     /// ```
-    pub fn run<T: App>(mut self) -> Result<(), Error> {
+    pub fn run<T: App>(mut self, init_extra: T::InitData) -> Result<(), Error> {
         let mut key_mods = glfw::Modifiers::empty();
 
-        let mut app = T::init(&mut self).map_err(|err| Error::App(err))?;
+        let mut app = T::init(&mut self, init_extra).map_err(|err| Error::App(err))?;
 
         while !self.window.should_close() {
             self.glfw.poll_events();

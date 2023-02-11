@@ -32,7 +32,12 @@ pub struct Application {
 }
 
 impl App for Application {
-    fn init(environment: &mut Environment) -> Result<Self, Box<dyn std::error::Error>> {
+    type InitData = ();
+
+    fn init(
+        environment: &mut Environment,
+        _extra: Self::InitData,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         shader::builtins::display_uniform_and_attribute_info();
 
         // setup the egui backend
@@ -259,6 +264,6 @@ impl Application {
 fn main() {
     Environment::new("Simple Render")
         .unwrap()
-        .run::<Application>()
+        .run::<Application>(())
         .unwrap();
 }
