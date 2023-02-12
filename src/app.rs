@@ -108,35 +108,56 @@ impl Environment {
     ///
     /// Spawns a new window with an OpenGL context and window title as
     /// `application_name`.
-    pub fn new(application_name: &str) -> Result<Self, Error> {
+    pub fn new(application_name: &str, settings: &EnvironmentSettings) -> Result<Self, Error> {
         let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS)?;
 
-        glfw.window_hint(glfw::WindowHint::ContextVersion(3, 3));
+        glfw.window_hint(glfw::WindowHint::ContextVersion(
+            settings.context_version.0,
+            settings.context_version.1,
+        ));
         glfw.window_hint(glfw::WindowHint::OpenGlProfile(
-            glfw::OpenGlProfileHint::Core,
+            settings.opengl_profile_hint,
         ));
 
         // creating window
         let (mut window, events_receiver) = glfw
-            .create_window(1280, 720, application_name, glfw::WindowMode::Windowed)
+            .create_window(
+                settings.window_dimensions.0,
+                settings.window_dimensions.1,
+                application_name,
+                glfw::WindowMode::Windowed,
+            )
             .ok_or(Error::GlfwWindowCreation)?;
 
         // setup bunch of polling data
-        window.set_key_polling(true);
-        window.set_cursor_pos_polling(true);
-        window.set_mouse_button_polling(true);
-        window.set_framebuffer_size_polling(true);
-        window.set_scroll_polling(true);
-        window.set_char_polling(true);
+        window.set_pos_polling(settings.pos_polling);
+        window.set_size_polling(settings.size_polling);
+        window.set_close_polling(settings.close_polling);
+        window.set_refresh_polling(settings.refresh_polling);
+        window.set_focus_polling(settings.focus_polling);
+        window.set_iconify_polling(settings.iconify_polling);
+        window.set_framebuffer_size_polling(settings.framebuffer_size_polling);
+        window.set_key_polling(settings.key_polling);
+        window.set_char_polling(settings.char_polling);
+        window.set_char_mods_polling(settings.char_mods_polling);
+        window.set_mouse_button_polling(settings.mouse_button_polling);
+        window.set_cursor_pos_polling(settings.cursor_pos_polling);
+        window.set_cursor_enter_polling(settings.cursor_enter_polling);
+        window.set_scroll_polling(settings.scroll_polling);
+        window.set_drag_and_drop_polling(settings.drag_and_drop_polling);
+        window.set_maximize_polling(settings.maximize_polling);
+        window.set_content_scale_polling(settings.content_scale_polling);
         window.make_current();
 
-        gl::load_with(|symbol| window.get_proc_address(symbol));
+        if settings.load_opengl {
+            gl::load_with(|symbol| window.get_proc_address(symbol));
 
-        unsafe {
-            gl::Disable(gl::CULL_FACE);
-            gl::Enable(gl::DEPTH_TEST);
-            gl::Enable(gl::MULTISAMPLE);
-            gl::Enable(gl::FRAMEBUFFER_SRGB);
+            unsafe {
+                gl::Disable(gl::CULL_FACE);
+                gl::Enable(gl::DEPTH_TEST);
+                gl::Enable(gl::MULTISAMPLE);
+                gl::Enable(gl::FRAMEBUFFER_SRGB);
+            }
         }
 
         let fps = FPS::default();

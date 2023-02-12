@@ -6,6 +6,7 @@ use egui_glfw::EguiBackend;
 
 use quick_renderer::app::App;
 use quick_renderer::app::Environment;
+use quick_renderer::app::EnvironmentSettings;
 use quick_renderer::app::MaybeContinue;
 use quick_renderer::camera::Camera;
 use quick_renderer::camera::InteractableCamera;
@@ -268,7 +269,7 @@ impl Application {
 }
 
 fn main() {
-    Environment::new("Simple Render")
+    Environment::new("Simple Render", &EnvironmentSettings::default())
         .unwrap()
         .run::<Application>(())
         .unwrap();
