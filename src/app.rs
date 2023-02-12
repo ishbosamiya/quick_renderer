@@ -63,12 +63,18 @@ pub trait App {
     where
         Self: std::marker::Sized;
 
+    /// Type of data that is returned when the [`App`] exits.
+    type ExitData;
+
     /// Run during the update loop. Guarenteed to be run once per
     /// frame.
     ///
-    /// If an error is returned, the application will quit and exit
-    /// out of the environment with the error provided.
-    fn update(&mut self, environment: &mut Environment) -> Result<(), Box<dyn std::error::Error>>;
+    /// The application exits if [`Ok`]`(`[`MaybeContinue::Exit`]`)`
+    /// or [`Err`] is returned.
+    fn update(
+        &mut self,
+        environment: &mut Environment,
+    ) -> Result<MaybeContinue<Self::ExitData>, Box<dyn std::error::Error>>;
 
     /// Handle events of the window (application). There may be more
     /// than 1 event per frame.
@@ -78,6 +84,14 @@ pub trait App {
         window: &mut glfw::Window,
         key_mods: &glfw::Modifiers,
     );
+}
+
+/// Maybe the app should continue running.
+pub enum MaybeContinue<T> {
+    /// Continue running the app.
+    Continue,
+    /// Exit the app with some data.
+    Exit(T),
 }
 
 /// Environment of the application that handles the boiler plate code
@@ -138,15 +152,23 @@ impl Environment {
     /// Run the environment with the given [`App`]. The [`App`] is
     /// given through a generic argument.
     ///
-    /// Exits if `app` returns an [`Result::Err(_)`] or the window of
-    /// the application closes.
+    /// Exits if the app returns [`Ok`]`(`[`MaybeContinue::Exit`]`)`
+    /// or [`Err`]`(_)` in its [`App::update()`] routine. Also exits
+    /// if the window of the application closes.
+    ///
+    /// Upon the [`App`] exiting, the [`App`] is returned. If the
+    /// [`App`] exited with [`MaybeContinue::Exit`], the given data is
+    /// returned too.
     ///
     /// # Example
     ///
     /// ```ignore
     /// Environment::new("Simple Render")?.run::<Application>()?
     /// ```
-    pub fn run<T: App>(mut self, init_extra: T::InitData) -> Result<(), Error> {
+    pub fn run<T: App>(
+        mut self,
+        init_extra: T::InitData,
+    ) -> Result<(T, Option<T::ExitData>), Error> {
         let mut key_mods = glfw::Modifiers::empty();
 
         let mut app = T::init(&mut self, init_extra).map_err(|err| Error::App(err))?;
@@ -174,12 +196,19 @@ impl Environment {
                 app.handle_window_event(&event, window, &key_mods);
             });
 
-            app.update(&mut self).map_err(|err| Error::App(err))?;
+            match app.update(&mut self).map_err(|err| Error::App(err))? {
+                MaybeContinue::Continue => {
+                    // continue to next frame
+                }
+                MaybeContinue::Exit(data) => {
+                    return Ok((app, Some(data)));
+                }
+            }
 
             // Swap front and back buffers
             self.window.swap_buffers();
         }
 
-        Ok(())
+        Ok((app, None))
     }
 }

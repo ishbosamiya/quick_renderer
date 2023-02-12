@@ -6,6 +6,7 @@ use egui_glfw::EguiBackend;
 
 use quick_renderer::app::App;
 use quick_renderer::app::Environment;
+use quick_renderer::app::MaybeContinue;
 use quick_renderer::camera::Camera;
 use quick_renderer::camera::InteractableCamera;
 use quick_renderer::drawable::Drawable;
@@ -86,7 +87,12 @@ impl App for Application {
         })
     }
 
-    fn update(&mut self, environment: &mut Environment) -> Result<(), Box<dyn std::error::Error>> {
+    type ExitData = ();
+
+    fn update(
+        &mut self,
+        environment: &mut Environment,
+    ) -> Result<MaybeContinue<Self::ExitData>, Box<dyn std::error::Error>> {
         if self.camera.get_fps_mode() {
             environment
                 .window
@@ -188,7 +194,7 @@ impl App for Application {
         }
         // GUI ends
 
-        Ok(())
+        Ok(MaybeContinue::Continue)
     }
 
     fn handle_window_event(
