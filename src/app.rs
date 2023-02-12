@@ -362,3 +362,131 @@ impl Default for EnvironmentSettings {
         }
     }
 }
+
+impl EnvironmentSettings {
+    /// Set [`Self::window_dimensions`].
+    pub fn window_dimensions(mut self, window_dimensions: (u32, u32)) -> Self {
+        self.window_dimensions = window_dimensions;
+        self
+    }
+
+    /// Set [`Self::pos_polling`].
+    pub fn pos_polling(mut self, pos_polling: bool) -> Self {
+        self.pos_polling = pos_polling;
+        self
+    }
+
+    /// Set [`Self::size_polling`].
+    pub fn size_polling(mut self, size_polling: bool) -> Self {
+        self.size_polling = size_polling;
+        self
+    }
+
+    /// Set [`Self::close_polling`].
+    pub fn close_polling(mut self, close_polling: bool) -> Self {
+        self.close_polling = close_polling;
+        self
+    }
+
+    /// Set [`Self::refresh_polling`].
+    pub fn refresh_polling(mut self, refresh_polling: bool) -> Self {
+        self.refresh_polling = refresh_polling;
+        self
+    }
+
+    /// Set [`Self::focus_polling`].
+    pub fn focus_polling(mut self, focus_polling: bool) -> Self {
+        self.focus_polling = focus_polling;
+        self
+    }
+
+    /// Set [`Self::iconify_polling`].
+    pub fn iconify_polling(mut self, iconify_polling: bool) -> Self {
+        self.iconify_polling = iconify_polling;
+        self
+    }
+
+    /// Set [`Self::framebuffer_size_polling`].
+    pub fn framebuffer_size_polling(mut self, framebuffer_size_polling: bool) -> Self {
+        self.framebuffer_size_polling = framebuffer_size_polling;
+        self
+    }
+
+    /// Set [`Self::key_polling`].
+    pub fn key_polling(mut self, key_polling: bool) -> Self {
+        self.key_polling = key_polling;
+        self
+    }
+
+    /// Set [`Self::char_polling`].
+    pub fn char_polling(mut self, char_polling: bool) -> Self {
+        self.char_polling = char_polling;
+        self
+    }
+
+    /// Set [`Self::char_mods_polling`].
+    pub fn char_mods_polling(mut self, char_mods_polling: bool) -> Self {
+        self.char_mods_polling = char_mods_polling;
+        self
+    }
+
+    /// Set [`Self::mouse_button_polling`].
+    pub fn mouse_button_polling(mut self, mouse_button_polling: bool) -> Self {
+        self.mouse_button_polling = mouse_button_polling;
+        self
+    }
+
+    /// Set [`Self::cursor_pos_polling`].
+    pub fn cursor_pos_polling(mut self, cursor_pos_polling: bool) -> Self {
+        self.cursor_pos_polling = cursor_pos_polling;
+        self
+    }
+
+    /// Set [`Self::cursor_enter_polling`].
+    pub fn cursor_enter_polling(mut self, cursor_enter_polling: bool) -> Self {
+        self.cursor_enter_polling = cursor_enter_polling;
+        self
+    }
+
+    /// Set [`Self::scroll_polling`].
+    pub fn scroll_polling(mut self, scroll_polling: bool) -> Self {
+        self.scroll_polling = scroll_polling;
+        self
+    }
+
+    /// Set [`Self::drag_and_drop_polling`].
+    pub fn drag_and_drop_polling(mut self, drag_and_drop_polling: bool) -> Self {
+        self.drag_and_drop_polling = drag_and_drop_polling;
+        self
+    }
+
+    /// Set [`Self::maximize_polling`].
+    pub fn maximize_polling(mut self, maximize_polling: bool) -> Self {
+        self.maximize_polling = maximize_polling;
+        self
+    }
+
+    /// Set [`Self::content_scale_polling`].
+    pub fn content_scale_polling(mut self, content_scale_polling: bool) -> Self {
+        self.content_scale_polling = content_scale_polling;
+        self
+    }
+
+    /// Set [`Self::context_version`].
+    pub fn context_version(mut self, context_version: (u32, u32)) -> Self {
+        self.context_version = context_version;
+        self
+    }
+
+    /// Set [`Self::opengl_profile_hint`].
+    pub fn opengl_profile_hint(mut self, opengl_profile_hint: glfw::OpenGlProfileHint) -> Self {
+        self.opengl_profile_hint = opengl_profile_hint;
+        self
+    }
+
+    /// Set [`Self::load_opengl`].
+    pub fn load_opengl(mut self, load_opengl: bool) -> Self {
+        self.load_opengl = load_opengl;
+        self
+    }
+}
