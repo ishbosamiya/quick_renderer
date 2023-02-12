@@ -265,3 +265,79 @@ pub struct EnvironmentSettings {
     /// Load OpenGL?
     pub load_opengl: bool,
 }
+
+impl EnvironmentSettings {
+    /// Default [`Self::window_dimensions`].
+    pub const DEFAULT_WINDOW_DIMENSIONS: (u32, u32) = (1280, 720);
+
+    /// Default [`Self::pos_polling`].
+    pub const DEFAULT_POS_POLLING: bool = true;
+    /// Default [`Self::size_polling`].
+    pub const DEFAULT_SIZE_POLLING: bool = true;
+    /// Default [`Self::close_polling`].
+    pub const DEFAULT_CLOSE_POLLING: bool = true;
+    /// Default [`Self::refresh_polling`].
+    pub const DEFAULT_REFRESH_POLLING: bool = true;
+    /// Default [`Self::focus_polling`].
+    pub const DEFAULT_FOCUS_POLLING: bool = true;
+    /// Default [`Self::iconify_polling`].
+    pub const DEFAULT_ICONIFY_POLLING: bool = true;
+    /// Default [`Self::framebuffer_size_polling`].
+    pub const DEFAULT_FRAMEBUFFER_SIZE_POLLING: bool = true;
+    /// Default [`Self::key_polling`].
+    pub const DEFAULT_KEY_POLLING: bool = true;
+    /// Default [`Self::char_polling`].
+    pub const DEFAULT_CHAR_POLLING: bool = true;
+    /// Default [`Self::char_mods_polling`].
+    pub const DEFAULT_CHAR_MODS_POLLING: bool = true;
+    /// Default [`Self::mouse_button_polling`].
+    pub const DEFAULT_MOUSE_BUTTON_POLLING: bool = true;
+    /// Default [`Self::cursor_pos_polling`].
+    pub const DEFAULT_CURSOR_POS_POLLING: bool = true;
+    /// Default [`Self::cursor_enter_polling`].
+    pub const DEFAULT_CURSOR_ENTER_POLLING: bool = true;
+    /// Default [`Self::scroll_polling`].
+    pub const DEFAULT_SCROLL_POLLING: bool = true;
+    /// Default [`Self::drag_and_drop_polling`].
+    pub const DEFAULT_DRAG_AND_DROP_POLLING: bool = true;
+    /// Default [`Self::maximize_polling`].
+    pub const DEFAULT_MAXIMIZE_POLLING: bool = true;
+    /// Default [`Self::content_scale_polling`].
+    pub const DEFAULT_CONTENT_SCALE_POLLING: bool = true;
+
+    /// Default [`Self::context_version`].
+    pub const DEFAULT_CONTEXT_VERSION: (u32, u32) = (4, 6);
+    /// Default [`Self::opengl_profile_hint`].
+    pub const DEFAULT_OPENGL_PROFILE_HINT: glfw::OpenGlProfileHint = glfw::OpenGlProfileHint::Core;
+
+    /// Default [`Self::load_opengl`].
+    pub const DEFAULT_LOAD_OPENGL: bool = true;
+}
+
+impl Default for EnvironmentSettings {
+    fn default() -> Self {
+        Self {
+            window_dimensions: Self::DEFAULT_WINDOW_DIMENSIONS,
+            pos_polling: Self::DEFAULT_POS_POLLING,
+            size_polling: Self::DEFAULT_SIZE_POLLING,
+            close_polling: Self::DEFAULT_CLOSE_POLLING,
+            refresh_polling: Self::DEFAULT_REFRESH_POLLING,
+            focus_polling: Self::DEFAULT_FOCUS_POLLING,
+            iconify_polling: Self::DEFAULT_ICONIFY_POLLING,
+            framebuffer_size_polling: Self::DEFAULT_FRAMEBUFFER_SIZE_POLLING,
+            key_polling: Self::DEFAULT_KEY_POLLING,
+            char_polling: Self::DEFAULT_CHAR_POLLING,
+            char_mods_polling: Self::DEFAULT_CHAR_MODS_POLLING,
+            mouse_button_polling: Self::DEFAULT_MOUSE_BUTTON_POLLING,
+            cursor_pos_polling: Self::DEFAULT_CURSOR_POS_POLLING,
+            cursor_enter_polling: Self::DEFAULT_CURSOR_ENTER_POLLING,
+            scroll_polling: Self::DEFAULT_SCROLL_POLLING,
+            drag_and_drop_polling: Self::DEFAULT_DRAG_AND_DROP_POLLING,
+            maximize_polling: Self::DEFAULT_MAXIMIZE_POLLING,
+            content_scale_polling: Self::DEFAULT_CONTENT_SCALE_POLLING,
+            context_version: Self::DEFAULT_CONTEXT_VERSION,
+            opengl_profile_hint: Self::DEFAULT_OPENGL_PROFILE_HINT,
+            load_opengl: Self::DEFAULT_LOAD_OPENGL,
+        }
+    }
+}
