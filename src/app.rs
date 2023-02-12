@@ -212,3 +212,56 @@ impl Environment {
         Ok((app, None))
     }
 }
+
+/// Settings for the [`Environment`].
+pub struct EnvironmentSettings {
+    /// Width and height of the initial window.
+    pub window_dimensions: (u32, u32),
+
+    /// Enable pos polling?
+    pub pos_polling: bool,
+    /// Enable size_polling?
+    pub size_polling: bool,
+    /// Enable close polling?
+    pub close_polling: bool,
+    /// Enable refresh polling?
+    pub refresh_polling: bool,
+    /// Enable focus polling?
+    pub focus_polling: bool,
+    /// Enable iconify polling?
+    pub iconify_polling: bool,
+    /// Enable framebuffer size polling?
+    pub framebuffer_size_polling: bool,
+    /// Enable key polling?
+    pub key_polling: bool,
+    /// Enable char polling?
+    pub char_polling: bool,
+    /// Enable char mods polling?
+    pub char_mods_polling: bool,
+    /// Enable mouse button polling?
+    pub mouse_button_polling: bool,
+    /// Enable cursor pos polling?
+    pub cursor_pos_polling: bool,
+    /// Enable cursor enter polling?
+    pub cursor_enter_polling: bool,
+    /// Enable scroll polling?
+    pub scroll_polling: bool,
+    /// Enable drag and drop polling?
+    pub drag_and_drop_polling: bool,
+    /// Enable maximize polling?
+    pub maximize_polling: bool,
+    /// Enable content scale polling?
+    pub content_scale_polling: bool,
+
+    /// Specifies the client API major and minor version that the
+    /// created context must be compatible with.
+    ///
+    /// Window creation will fail if the resulting OpenGL version is
+    /// less than the one requested.
+    pub context_version: (u32, u32),
+    /// [`glfw::OpenGLProfileHint`].
+    pub opengl_profile_hint: glfw::OpenGlProfileHint,
+
+    /// Load OpenGL?
+    pub load_opengl: bool,
+}
