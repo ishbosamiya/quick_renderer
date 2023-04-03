@@ -146,17 +146,19 @@ impl Camera {
     /// # Example
     ///
     /// ```
-    /// # let camera = Camera::new(
-    /// #     glm::vec3(0.0, 0.0, 0.0),
-    /// #     glm::vec3(0.0, 1.0, 0.0),
-    /// #     -90.0,
-    /// #     0.0,
-    /// #     45.0,
-    /// #     None,
-    /// # );
+    /// # use nalgebra_glm as glm;
+    /// # use quick_renderer::camera::{Camera, vfov_to_hfov};
+    /// let camera = Camera::new(
+    ///     glm::vec3(0.0, 0.0, 0.0),
+    ///     glm::vec3(0.0, 1.0, 0.0),
+    ///     -90.0,
+    ///     0.0,
+    ///     45.0,
+    ///     None,
+    /// );
     /// let vfov_deg = camera.get_fov();
     /// let vfov_rad = vfov_deg.to_radians();
-    /// let hfov_rad = vfov_to_hfov(vfov, 1.0);
+    /// let hfov_rad = vfov_to_hfov(vfov_rad, 1.0);
     /// assert!((vfov_rad - hfov_rad).abs() < 1e-5);
     /// ```
     pub fn get_fov(&self) -> f64 {
