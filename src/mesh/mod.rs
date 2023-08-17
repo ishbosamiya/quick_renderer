@@ -336,7 +336,7 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
             .get_faces()
             .iter()
             .try_for_each(|face_index| {
-                (self.get_face(*face_index).unwrap().get_verts().len() == 3).then(|| ())
+                (self.get_face(*face_index).unwrap().get_verts().len() == 3).then_some(())
             })
             .is_none()
         {

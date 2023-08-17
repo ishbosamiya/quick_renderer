@@ -46,7 +46,7 @@ pub enum GPUVertFetchMode {
     None,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GPUPrimType {
     Points,
     Lines,
