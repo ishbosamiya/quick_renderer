@@ -208,7 +208,7 @@ impl GPUVertFormat {
         // For now, attributes are packed in the order they were added, making sure each attribute is naturally aligned (add padding where necessary). Later we can implement more efficient packing w/ reordering (keep attribute ID order, adjust their offsets to reorder in buffer).
         let mut offset: usize;
         {
-            let mut a0 = &mut self.attrs[0];
+            let a0 = &mut self.attrs[0];
             a0.offset = 0;
             offset = a0.sz.into();
         }

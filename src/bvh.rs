@@ -117,8 +117,8 @@ where
         let bv2 = &other.bv;
         for axis_iter in start_axis..stop_axis {
             let axis_iter = axis_iter as usize;
-            if bv1[(2 * axis_iter)] > bv2[(2 * axis_iter) + 1]
-                || bv2[(2 * axis_iter)] > bv1[(2 * axis_iter) + 1]
+            if bv1[2 * axis_iter] > bv2[(2 * axis_iter) + 1]
+                || bv2[2 * axis_iter] > bv1[(2 * axis_iter) + 1]
             {
                 return false;
             }
@@ -545,7 +545,7 @@ where
         // Inflate bv by epsilon
         for axis_iter in self.start_axis..self.stop_axis {
             let axis_iter = axis_iter as usize;
-            node.bv[(2 * axis_iter)] -= self.epsilon; // min
+            node.bv[2 * axis_iter] -= self.epsilon; // min
             node.bv[(2 * axis_iter) + 1] += self.epsilon; // max
         }
     }
@@ -565,9 +565,9 @@ where
             for axis_iter in self.start_axis..self.stop_axis {
                 let axis_iter = axis_iter as usize;
 
-                let new_min = node_bv[(2 * axis_iter)];
-                if new_min < bv[(2 * axis_iter)] {
-                    bv[(2 * axis_iter)] = new_min;
+                let new_min = node_bv[2 * axis_iter];
+                if new_min < bv[2 * axis_iter] {
+                    bv[2 * axis_iter] = new_min;
                 }
 
                 let new_max = node_bv[(2 * axis_iter) + 1];
@@ -909,7 +909,7 @@ where
         // Inflate bv by epsilon
         for axis_iter in self.start_axis..self.stop_axis {
             let axis_iter = axis_iter as usize;
-            node.bv[(2 * axis_iter)] -= self.epsilon; // min
+            node.bv[2 * axis_iter] -= self.epsilon; // min
             node.bv[(2 * axis_iter) + 1] += self.epsilon; // max
         }
 
@@ -933,8 +933,8 @@ where
                 for axis_iter in self.start_axis..self.stop_axis {
                     let axis_iter = axis_iter as usize;
                     // update minimum
-                    if child.bv[(2 * axis_iter)] < node.bv[(2 * axis_iter)] {
-                        node.bv[(2 * axis_iter)] = child.bv[(2 * axis_iter)];
+                    if child.bv[2 * axis_iter] < node.bv[2 * axis_iter] {
+                        node.bv[2 * axis_iter] = child.bv[2 * axis_iter];
                     }
                     // update maximum
                     if child.bv[(2 * axis_iter) + 1] > node.bv[(2 * axis_iter) + 1] {
@@ -1457,9 +1457,9 @@ impl<T: glm::Number + num_traits::AsPrimitive<f32>, E: std::marker::Copy> BVHTre
         if current_level == draw_level {
             let x1: f32 = node.bv[0].as_();
             let x2: f32 = node.bv[1].as_();
-            let y1: f32 = node.bv[(2)].as_();
+            let y1: f32 = node.bv[2].as_();
             let y2: f32 = node.bv[(2) + 1].as_();
-            let z1: f32 = node.bv[(2 * 2)].as_();
+            let z1: f32 = node.bv[2 * 2].as_();
             let z2: f32 = node.bv[(2 * 2) + 1].as_();
 
             draw_box(imm, x1, x2, y1, y2, z1, z2, pos_attr, color_attr, color);
