@@ -54,7 +54,7 @@ pub fn vec3_apply_model_matrix<T: glm::Number>(
 /// twice), it is better to use [`vec3_apply_model_matrix()`] instead
 /// by passing [`glm::inverse_transpose()`]\(model\) as the model
 /// matrix.
-pub fn vec3_dir_apply_model_matrix<T: glm::Number + glm::RealField>(
+pub fn vec3_dir_apply_model_matrix<T: glm::RealNumber>(
     direction: &glm::TVec3<T>,
     model: &glm::TMat4<T>,
 ) -> glm::TVec3<T> {
@@ -66,7 +66,7 @@ pub fn vec3_dir_apply_model_matrix<T: glm::Number + glm::RealField>(
     since = "0.5.3",
     note = "Use vec3_dir_apply_model_matrix() instead. This is solely a name change."
 )]
-pub fn normal_apply_model_matrix<T: glm::Number + glm::RealField>(
+pub fn normal_apply_model_matrix<T: glm::RealNumber>(
     normal: &glm::TVec3<T>,
     model: &glm::TMat4<T>,
 ) -> glm::TVec3<T> {
@@ -135,7 +135,7 @@ pub fn linear_to_srgb<const R: usize>(linear: &glm::TVec<f64, R>) -> glm::TVec<f
         // } else {
         //     1.055 * linear.powf(1.0 / 2.4) - 0.055
         // }
-        egui_glfw::egui::color::gamma_from_linear(linear as f32) as _
+        egui_glfw::egui::ecolor::gamma_from_linear(linear as f32) as _
     };
 
     let mut srgb = *linear;
@@ -147,7 +147,7 @@ pub fn linear_to_srgb<const R: usize>(linear: &glm::TVec<f64, R>) -> glm::TVec<f
 
 /// convert srgb to linear rgb
 ///
-/// /// `srgb`: srgb values between 0.0 and 1.0
+/// `srgb`: srgb values between 0.0 and 1.0
 ///
 /// reference: <https://en.wikipedia.org/wiki/SRGB#From_sRGB_to_CIE_XYZ>
 pub fn srgb_to_linear<const R: usize>(srgb: &glm::TVec<f64, R>) -> glm::TVec<f64, R> {
@@ -157,7 +157,7 @@ pub fn srgb_to_linear<const R: usize>(srgb: &glm::TVec<f64, R>) -> glm::TVec<f64
         // } else {
         //     ((srgb + 0.055) / 1.055).powf(2.4)
         // }
-        egui_glfw::egui::color::linear_from_gamma(srgb as f32) as _
+        egui_glfw::egui::ecolor::linear_from_gamma(srgb as f32) as _
     };
 
     let mut linear = *srgb;

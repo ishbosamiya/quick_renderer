@@ -142,9 +142,7 @@ impl App for Application {
         }
 
         let (window_width, window_height) = environment.window.get_size();
-        let _output = self
-            .egui
-            .end_frame(glm::vec2(window_width as _, window_height as _));
+        let _output = self.egui.end_frame((window_width as _, window_height as _));
 
         Ok(MaybeContinue::Continue)
     }

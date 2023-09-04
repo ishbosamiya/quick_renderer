@@ -716,7 +716,7 @@ impl Camera {
 
     /// Apply the given [`glm::TMat4`] to the given [`glm::TVec3`] to
     /// form a [`glm::TVec4`].
-    fn apply_matrix_vec3_to_vec4<T: glm::RealField>(
+    fn apply_matrix_vec3_to_vec4<T: glm::Number>(
         vec: &glm::TVec3<T>,
         mat: &glm::TMat4<T>,
     ) -> glm::TVec4<T> {

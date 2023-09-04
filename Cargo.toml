@@ -9,8 +9,8 @@ edition = "2018"
 [dependencies]
 glfw = "0.41"
 gl = "0.14"
-egui_glfw = { version = "0.3", git = "ssh://git@github.com/ishbosamiya/egui_glfw.git", branch = "v0.3.1-release" }
-nalgebra-glm = { version = "0.13", features = ["serde-serialize"] }
+egui_glfw = { version = "0.4.0", git = "ssh://git@github.com/ishbosamiya/egui_glfw.git", branch = "v0.4.0-release" }
+nalgebra-glm = { version = "0.18", features = ["serde-serialize"] }
 generational-arena = { version = "0.2", features = ["serde"] }
 itertools = "0.10"
 lazy_static = "1.4"

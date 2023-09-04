@@ -189,9 +189,7 @@ impl App for Application {
                     environment.fps.update_and_get(Some(60.0))
                 ));
             });
-            let _output = self
-                .egui
-                .end_frame(glm::vec2(window_width as _, window_height as _));
+            let _output = self.egui.end_frame((window_width as _, window_height as _));
         }
         // GUI ends
 

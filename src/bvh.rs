@@ -2,6 +2,7 @@
 
 use generational_arena::{Arena, Index};
 use nalgebra_glm as glm;
+use num_traits::Bounded;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -59,7 +60,7 @@ fn bvhtree_kdop_axes<T: glm::Number>() -> [glm::TVec3<T>; 13] {
     ]
 }
 
-impl<T: glm::Number + glm::RealField, E> BVHNode<T, E>
+impl<T: glm::RealNumber, E> BVHNode<T, E>
 where
     E: Copy,
 {
@@ -78,8 +79,8 @@ where
     fn min_max_init(&mut self, start_axis: u8, stop_axis: u8) {
         let bv = &mut self.bv;
         for axis_iter in start_axis..stop_axis {
-            bv[(2 * axis_iter) as usize] = T::max_value();
-            bv[((2 * axis_iter) + 1) as usize] = T::min_value();
+            bv[(2 * axis_iter) as usize] = <T as Bounded>::max_value();
+            bv[((2 * axis_iter) + 1) as usize] = <T as Bounded>::min_value();
         }
     }
 
@@ -294,7 +295,7 @@ where
     pub co: glm::TVec3<T>,
 }
 
-impl<T: glm::Number + glm::RealField, E> RayHitOptionalData<T, E>
+impl<T: glm::Number, E> RayHitOptionalData<T, E>
 where
     E: Copy,
 {
@@ -315,7 +316,7 @@ where
     pub extra_data: Option<ExtraData>,
 }
 
-impl<T: glm::Number + glm::RealField, E, ExtraData> RayHitData<T, E, ExtraData>
+impl<T: glm::Number, E, ExtraData> RayHitData<T, E, ExtraData>
 where
     E: Copy,
     ExtraData: Copy,
@@ -347,7 +348,7 @@ struct RayCastData<T> {
     index: [usize; 6],
 }
 
-impl<T: glm::Number + glm::RealField> RayCastData<T> {
+impl<T: glm::Number> RayCastData<T> {
     fn new(co: glm::TVec3<T>, dir: glm::TVec3<T>) -> Self {
         let bvhtree_kdop_axes = bvhtree_kdop_axes();
 
@@ -394,7 +395,7 @@ where
     dist_sq: T,
 }
 
-impl<T: glm::Number + glm::RealField, E> NearestData<T, E>
+impl<T: glm::Number, E> NearestData<T, E>
 where
     E: Copy,
 {
@@ -442,7 +443,7 @@ where
     }
 }
 
-impl<T: glm::Number + glm::RealField, E> BVHTree<T, E>
+impl<T: glm::RealNumber, E> BVHTree<T, E>
 where
     E: Copy,
 {
@@ -1282,7 +1283,7 @@ where
 
         let data = RayCastData::new(co, dir);
 
-        let mut hit_data = RayHitData::new(T::max_value());
+        let mut hit_data = RayHitData::new(<T as Bounded>::max_value());
 
         self.ray_cast_traverse(root_index, &data, callback, &mut hit_data);
 
@@ -1490,7 +1491,7 @@ fn implicit_needed_branches(tree_type: u8, leafs: usize) -> usize {
     1.max(leafs + tree_type as usize - 3) / (tree_type - 1) as usize
 }
 
-fn get_largest_axis<T: glm::Number + glm::RealField>(bv: &[T]) -> u8 {
+fn get_largest_axis<T: glm::Number>(bv: &[T]) -> u8 {
     let middle_point_x = bv[1] - bv[0]; // x axis
     let middle_point_y = bv[3] - bv[2]; // y axis
     let middle_point_z = bv[5] - bv[4]; // z axis
@@ -1576,7 +1577,7 @@ impl BVHDrawData {
     }
 }
 
-impl<T: glm::Number + glm::RealField + num_traits::AsPrimitive<f32>, E> Drawable for BVHTree<T, E>
+impl<T: glm::Number + num_traits::AsPrimitive<f32>, E> Drawable for BVHTree<T, E>
 where
     E: Copy,
 {
@@ -1633,7 +1634,7 @@ where
 /// point `co`.
 ///
 /// From Blender's math_geom.c `closest_on_tri_to_point_v3`.
-pub fn nearest_point_to_tri<T: glm::Number + glm::RealField>(
+pub fn nearest_point_to_tri<T: glm::Number>(
     co: &glm::TVec3<T>,
     points: [&glm::TVec3<T>; 3],
 ) -> glm::TVec3<T> {

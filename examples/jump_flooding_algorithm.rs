@@ -287,7 +287,7 @@ fn main() {
                         .clamp_to_range(true),
                 );
             });
-            let _output = egui.end_frame(glm::vec2(window_width as _, window_height as _));
+            let _output = egui.end_frame((window_width as _, window_height as _));
         }
         // GUI ends
 

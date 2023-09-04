@@ -242,7 +242,7 @@ impl InteractableCamera {
         render_width: usize,
         render_height: usize,
     ) -> bool {
-        let cursor = if let Some(hover_pos) = ui.input().pointer.hover_pos() {
+        let cursor = if let Some(hover_pos) = ui.input(|i| i.pointer.hover_pos()) {
             (hover_pos.x as f64, hover_pos.y as f64)
         } else {
             return false;
@@ -256,22 +256,20 @@ impl InteractableCamera {
 
         if response.hovered()
             && !self.fps_mode
-            && ui.input().key_pressed(egui::Key::F)
-            && ui.input().modifiers.command_only()
+            && ui.input(|i| i.key_pressed(egui::Key::F) && i.modifiers.command_only())
         {
             self.fps_mode = true;
         }
 
-        if self.fps_mode
-            && ui.input().key_pressed(egui::Key::Escape)
-            && ui.input().modifiers.is_none()
+        if self.fps_mode && ui.input(|i| i.key_pressed(egui::Key::Escape) && i.modifiers.is_none())
         {
             self.fps_mode = false;
         }
 
         let fov_changed =
-            if (response.hovered() || self.fps_mode) && ui.input().scroll_delta.y != 0.0 {
-                self.camera.zoom((ui.input().scroll_delta.y as f64) * 0.01);
+            if (response.hovered() || self.fps_mode) && ui.input(|i| i.scroll_delta.y) != 0.0 {
+                self.camera
+                    .zoom((ui.input(|i| i.scroll_delta.y) as f64) * 0.01);
                 true
             } else {
                 false
@@ -285,31 +283,29 @@ impl InteractableCamera {
                 delta_time,
             );
 
-            if ui.input().key_down(egui::Key::PageUp)
-                && ui
-                    .input()
-                    .modifiers
-                    .matches(egui::Modifiers::COMMAND | egui::Modifiers::SHIFT)
-            {
+            if ui.input(|i| {
+                i.key_down(egui::Key::PageUp)
+                    && i.modifiers
+                        .matches(egui::Modifiers::COMMAND | egui::Modifiers::SHIFT)
+            }) {
                 self.fps_movement_speed += 0.3;
-            } else if ui.input().key_down(egui::Key::PageDown)
-                && ui
-                    .input()
-                    .modifiers
-                    .matches(egui::Modifiers::COMMAND | egui::Modifiers::SHIFT)
-            {
+            } else if ui.input(|i| {
+                i.key_down(egui::Key::PageDown)
+                    && i.modifiers
+                        .matches(egui::Modifiers::COMMAND | egui::Modifiers::SHIFT)
+            }) {
                 self.fps_movement_speed -= 0.1;
                 // clamp the bottom value
                 self.fps_movement_speed = self.fps_movement_speed.max(0.1);
             }
 
-            let movement_speed = if ui.input().modifiers.is_none() {
+            let movement_speed = if ui.input(|i| i.modifiers.is_none()) {
                 // no change
                 Some(self.fps_movement_speed)
-            } else if ui.input().modifiers.shift_only() {
+            } else if ui.input(|i| i.modifiers.shift_only()) {
                 // reduce speed
                 Some(self.fps_movement_speed / 2.0)
-            } else if ui.input().modifiers.command_only() {
+            } else if ui.input(|i| i.modifiers.command_only()) {
                 // increase speed
                 Some(self.fps_movement_speed * 2.0)
             } else {
@@ -318,19 +314,19 @@ impl InteractableCamera {
             };
 
             if let Some(movement_speed) = movement_speed {
-                if ui.input().key_down(egui::Key::W) {
+                if ui.input(|i| i.key_down(egui::Key::W)) {
                     self.camera
                         .fps_move(Direction::Forward, movement_speed, delta_time);
                 }
-                if ui.input().key_down(egui::Key::S) {
+                if ui.input(|i| i.key_down(egui::Key::S)) {
                     self.camera
                         .fps_move(Direction::Backward, movement_speed, delta_time);
                 }
-                if ui.input().key_down(egui::Key::A) {
+                if ui.input(|i| i.key_down(egui::Key::A)) {
                     self.camera
                         .fps_move(Direction::Left, movement_speed, delta_time);
                 }
-                if ui.input().key_down(egui::Key::D) {
+                if ui.input(|i| i.key_down(egui::Key::D)) {
                     self.camera
                         .fps_move(Direction::Right, movement_speed, delta_time);
                 }
@@ -342,27 +338,25 @@ impl InteractableCamera {
             let mut move_foward = false;
             let mut rotate = false;
             if response.dragged_by(egui::PointerButton::Middle) {
-                if ui.input().modifiers.shift_only() {
+                if ui.input(|i| i.modifiers.shift_only()) {
                     pan = true;
-                } else if ui.input().modifiers.command_only() {
+                } else if ui.input(|i| i.modifiers.command_only()) {
                     move_foward = true;
                 } else {
                     rotate = true;
                 }
             } else if response.dragged_by(egui::PointerButton::Primary) {
-                if ui
-                    .input()
-                    .modifiers
-                    .matches(egui::Modifiers::ALT | egui::Modifiers::SHIFT)
-                {
+                if ui.input(|i| {
+                    i.modifiers
+                        .matches(egui::Modifiers::ALT | egui::Modifiers::SHIFT)
+                }) {
                     pan = true;
-                } else if ui
-                    .input()
-                    .modifiers
-                    .matches(egui::Modifiers::ALT | egui::Modifiers::CTRL)
-                {
+                } else if ui.input(|i| {
+                    i.modifiers
+                        .matches(egui::Modifiers::ALT | egui::Modifiers::CTRL)
+                }) {
                     move_foward = true;
-                } else if ui.input().modifiers.matches(egui::Modifiers::ALT) {
+                } else if ui.input(|i| i.modifiers.matches(egui::Modifiers::ALT)) {
                     rotate = true;
                 }
             }
