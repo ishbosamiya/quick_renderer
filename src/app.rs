@@ -327,7 +327,7 @@ impl EnvironmentSettings {
     pub const DEFAULT_CONTENT_SCALE_POLLING: bool = true;
 
     /// Default [`Self::context_version`].
-    pub const DEFAULT_CONTEXT_VERSION: (u32, u32) = (4, 6);
+    pub const DEFAULT_CONTEXT_VERSION: (u32, u32) = (4, 5);
     /// Default [`Self::opengl_profile_hint`].
     pub const DEFAULT_OPENGL_PROFILE_HINT: glfw::OpenGlProfileHint = glfw::OpenGlProfileHint::Core;
 
