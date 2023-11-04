@@ -109,7 +109,7 @@ impl Environment {
     /// Spawns a new window with an OpenGL context and window title as
     /// `application_name`.
     pub fn new(application_name: &str, settings: &EnvironmentSettings) -> Result<Self, Error> {
-        let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS)?;
+        let mut glfw = glfw::init(glfw::fail_on_errors)?;
 
         glfw.window_hint(glfw::WindowHint::ContextVersion(
             settings.context_version.0,
