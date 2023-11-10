@@ -121,9 +121,7 @@ impl GLMesh {
             gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
             gl::BufferData(
                 gl::ARRAY_BUFFER,
-                (verts.len() * std::mem::size_of::<GLVert>())
-                    .try_into()
-                    .unwrap(),
+                std::mem::size_of_val(verts).try_into().unwrap(),
                 verts.as_ptr() as *const gl::types::GLvoid,
                 gl::STATIC_DRAW,
             );
