@@ -280,7 +280,7 @@ pub struct EnvironmentSettings {
     /// Window creation will fail if the resulting OpenGL version is
     /// less than the one requested.
     pub context_version: (u32, u32),
-    /// [`glfw::OpenGLProfileHint`].
+    /// [`glfw::OpenGlProfileHint`].
     pub opengl_profile_hint: glfw::OpenGlProfileHint,
 
     /// Load OpenGL?

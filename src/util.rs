@@ -19,12 +19,12 @@ pub fn str_to_cstr(string: &str) -> &std::ffi::CStr {
         .expect("ensure there is a '\\0' at the end of the string");
 }
 
-/// Append [`glm::Number::one()`] to the [`glm::TVec2`].
+/// Append one to the [`glm::TVec2`].
 pub fn vec2_append_one<T: glm::Number>(vec: &glm::TVec2<T>) -> glm::TVec3<T> {
     glm::vec3(vec[0], vec[1], T::one())
 }
 
-/// Append [`glm::Number::one()`] to the [`glm::TVec3`].
+/// Append one to the [`glm::TVec3`].
 pub fn vec3_append_one<T: glm::Number>(vec: &glm::TVec3<T>) -> glm::TVec4<T> {
     glm::vec4(vec[0], vec[1], vec[2], T::one())
 }
