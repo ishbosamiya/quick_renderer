@@ -192,7 +192,7 @@ impl Environment {
     ) -> Result<(T, Option<T::ExitData>), Error> {
         let mut key_mods = glfw::Modifiers::empty();
 
-        let mut app = T::init(self, init_extra).map_err(|err| Error::App(err))?;
+        let mut app = T::init(self, init_extra).map_err(Error::App)?;
 
         while !self.window.should_close() {
             self.glfw.poll_events();
@@ -217,7 +217,7 @@ impl Environment {
                 app.handle_window_event(&event, window, &key_mods);
             });
 
-            match app.update(self).map_err(|err| Error::App(err))? {
+            match app.update(self).map_err(Error::App)? {
                 MaybeContinue::Continue => {
                     // continue to next frame
                 }

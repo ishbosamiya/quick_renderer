@@ -226,8 +226,8 @@ impl App for Application {
 
                 let verts = get_verts(&Self::get_mesh_model_matrix(0))
                     .into_iter()
-                    .chain(get_verts(&Self::get_mesh_model_matrix(1)).into_iter())
-                    .chain(get_verts(&Self::get_mesh_model_matrix(2)).into_iter())
+                    .chain(get_verts(&Self::get_mesh_model_matrix(1)))
+                    .chain(get_verts(&Self::get_mesh_model_matrix(2)))
                     .collect::<Vec<_>>();
 
                 let window_size = window.get_size();
