@@ -1711,8 +1711,10 @@ trait ArenaFunctions {
     type Output;
 
     fn get_unknown_index(&self, i: usize) -> Index;
-    fn get_unknown(&self, i: usize) -> &Self::Output;
     fn get_unknown_mut(&mut self, i: usize) -> &mut Self::Output;
+
+    #[cfg(test)]
+    fn get_unknown(&self, i: usize) -> &Self::Output;
 }
 
 impl<T> ArenaFunctions for Arena<T> {
@@ -1724,13 +1726,14 @@ impl<T> ArenaFunctions for Arena<T> {
     }
 
     #[inline]
-    fn get_unknown(&self, i: usize) -> &Self::Output {
-        return self.get_unknown_gen(i).unwrap().0;
-    }
-
-    #[inline]
     fn get_unknown_mut(&mut self, i: usize) -> &mut Self::Output {
         return self.get_unknown_gen_mut(i).unwrap().0;
+    }
+
+    #[cfg(test)]
+    #[inline]
+    fn get_unknown(&self, i: usize) -> &Self::Output {
+        return self.get_unknown_gen(i).unwrap().0;
     }
 }
 
